@@ -10,20 +10,7 @@ A lightweight, printable character sheet styled with a Star Wars/tech-holo aesth
 
 **Quick start (local preview)**
 
-Open `index.html` in your browser (recommended via a local server above to ensure file APIs behave consistently).
-
-**What I changed recently**
-- Extracted inline CSS from `index.html` into `styles.css`.
-- Extracted inline JavaScript from `index.html` into `script.js`.
-- Updated `index.html` to reference the new files (`<link rel="stylesheet" href="styles.css">` and `<script src="script.js"></script>`).
-
-**Notes & next steps**
-- If you plan to use this in production, consider bundling/minifying assets and pinning or self-hosting external dependencies (Tailwind CDN, Google Fonts).
-- Add a small test or manual checklist to verify import/export behavior across browsers.
-- If you want, I can create a `package.json` and add a dev script to serve the folder, and make a git commit with these changes.
-
----
-Made with care for tabletop roleplaying fans. If you'd like the README changed or expanded (installation, contributing, screenshots), tell me what to add.
+Open `index.html` in your browser.
 
 ## How to use — Sauvegarder et charger / Save & Load (FR / EN)
 
