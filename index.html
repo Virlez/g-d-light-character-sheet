@@ -31,7 +31,7 @@
             text-transform: uppercase;
         }
 
-        /* Star Wars "Cut Corner" Aesthetic */
+        /* --- FORME COUPÉE (Style Star Wars) --- */
         .clip-corner {
             clip-path: polygon(
                 10px 0, 100% 0, 
@@ -48,7 +48,7 @@
             );
         }
 
-        /* Neon Glow Inputs */
+        /* --- CHAMPS DE FORMULAIRE --- */
         input, textarea, select {
             background: rgba(0, 20, 30, 0.6);
             border: 1px solid var(--holo-dim);
@@ -65,7 +65,7 @@
             background: rgba(0, 30, 40, 0.8);
         }
 
-        /* Custom Table Styling */
+        /* --- TABLEAU --- */
         .sw-table th {
             color: var(--holo-blue);
             border-bottom: 2px solid var(--holo-dim);
@@ -77,7 +77,7 @@
             padding: 2px;
         }
 
-        /* Section Borders */
+        /* --- BOITES DE SECTION --- */
         .section-box {
             border: 1px solid var(--holo-dim);
             position: relative;
@@ -101,7 +101,7 @@
             border-right: 2px solid var(--holo-blue);
         }
 
-        /* Image Placeholder */
+        /* --- IMAGE --- */
         .char-img-placeholder {
             background: repeating-linear-gradient(
                 45deg,
@@ -116,14 +116,14 @@
             border: 2px dashed var(--holo-dim);
         }
 
-        /* Number input clean up */
+        /* Nettoyage input number */
         input[type=number]::-webkit-inner-spin-button, 
         input[type=number]::-webkit-outer-spin-button { 
             -webkit-appearance: none; 
             margin: 0; 
         }
 
-        /* Scanline effect */
+        /* --- EFFET SCANLINE --- */
         .scanline {
             width: 100%;
             height: 100px;
@@ -141,100 +141,42 @@
             100% { bottom: -100%; }
         }
 
-        /* --- PRINT OPTIMIZATIONS (A4 One Page) --- */
+        /* --- OPTIMISATION IMPRESSION (A4) --- */
         @media print {
-            @page {
-                margin: 5mm;
-                size: A4 portrait;
-            }
-
+            @page { margin: 5mm; size: A4 portrait; }
             body {
-                background: white !important;
-                color: rgb(255, 255, 255) !important;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-                overflow: visible !important;
-                /* Scale down slightly to ensure fit */
+                background: white !important; color: black !important;
+                -webkit-print-color-adjust: exact; print-color-adjust: exact;
                 zoom: 90%;
             }
-
-            /* Hide decorative elements */
-            .scanline, .no-print, .char-img-placeholder::before {
-                display: none !important;
-            }
-
-            /* Reset Containers */
+            .scanline, .no-print, .char-img-placeholder::before { display: none !important; }
             .min-h-screen { min-height: 0 !important; }
             .p-4, .md\:p-8 { padding: 0 !important; }
             .max-w-5xl { max-width: 100% !important; width: 100% !important; }
-
-            /* Color Resets for Readability/Ink Saving */
-            h1, h2, h3, .text-\[\#00f0ff\] {
-                color: #000 !important;
-                text-shadow: none !important;
-                filter: none !important;
-            }
-            .section-box {
-                border: 2px solid #000 !important;
-                background: none !important;
-                margin-bottom: 8px !important;
-                page-break-inside: avoid;
-            }
+            h1, h2, h3, .text-\[\#00f0ff\] { color: #000 !important; text-shadow: none !important; filter: none !important; }
+            .section-box { border: 2px solid #000 !important; background: none !important; margin-bottom: 8px !important; page-break-inside: avoid; }
             .section-box::before, .section-box::after { display: none; }
-            
-            /* Inputs */
             input, textarea, select {
-                border: 1px solid #ccc !important;
-                border-bottom: 1px solid #000 !important;
-                color: black !important;
-                background: white !important;
-                font-size: 10pt !important;
-                box-shadow: none !important;
-                padding: 2px !important;
+                border: 1px solid #ccc !important; border-bottom: 1px solid #000 !important;
+                color: black !important; background: white !important; font-size: 10pt !important;
+                box-shadow: none !important; padding: 2px !important;
             }
             input::placeholder, textarea::placeholder { color: transparent; }
-
-            /* Specific Print Style for Attribute Grid Boxes */
-            .attr-box {
-                background-color: white !important;
-                border: 1px solid #000 !important;
-            }
-            .attr-bonus-input {
-                border: 1px solid #000 !important;
-                background-color: #f0f0f0 !important;
-            }
-
-            /* Force Grid Layout for Print (override Tailwind responsive stacking) */
+            .attr-box { background-color: white !important; border: 1px solid #000 !important; }
+            .attr-bonus-input { border: 1px solid #000 !important; background-color: #f0f0f0 !important; }
             .grid-cols-1 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
             .lg\:col-span-2 { grid-column: span 2 !important; }
-            
-            /* Header layout fix */
-            header { 
-                flex-direction: row !important; 
-                margin-bottom: 10px !important; 
-                padding-bottom: 5px !important;
-                border-bottom: 2px solid black !important;
-            }
-            
-            /* Compactness Tweaks */
+            header { flex-direction: row !important; margin-bottom: 10px !important; padding-bottom: 5px !important; border-bottom: 2px solid black !important; }
             .space-y-6 > * + * { margin-top: 0.5rem !important; }
             .space-y-3 > * + * { margin-top: 0.25rem !important; }
             .mb-4 { margin-bottom: 0.25rem !important; }
             .p-4 { padding: 0.5rem !important; }
-            
-            /* Attributes row */
             .md\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
-            
-            /* Talents / Inventory split */
             .mt-6 { margin-top: 0.5rem !important; }
             .md\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
-            
-            /* Height Fixes */
             .h-64 { height: auto !important; min-height: 150px; }
             .h-16 { height: 3rem !important; }
             .h-32 { height: 6rem !important; }
-            
-            /* Table */
             .sw-table th, .sw-table td { border-color: #000 !important; color: #000 !important; }
             .bg-black\/30 { background: #eee !important; }
         }
@@ -254,11 +196,11 @@
             <div class="flex gap-4 w-full md:w-auto">
                 <div class="flex-1 md:w-40">
                     <label class="block text-[10px] text-[#00f0ff] uppercase mb-1">Joueur</label>
-                    <input type="text" class="w-full px-2 py-1 clip-corner text-sm" placeholder="Nom">
+                    <input type="text" id="player_name" class="w-full px-2 py-1 clip-corner text-sm" placeholder="Nom">
                 </div>
                 <div class="flex-1 md:w-40">
                     <label class="block text-[10px] text-[#00f0ff] uppercase mb-1">Guilde</label>
-                    <input type="text" class="w-full px-2 py-1 clip-corner text-sm" placeholder="Guilde">
+                    <input type="text" id="guild_name" class="w-full px-2 py-1 clip-corner text-sm" placeholder="Guilde">
                 </div>
             </div>
         </header>
@@ -272,23 +214,23 @@
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                         <div class="md:col-span-2">
                             <label class="text-[10px] text-gray-400 block mb-1">Noms</label>
-                            <input type="text" class="w-full p-1 px-2 text-base font-bold">
+                            <input type="text" id="char_name" class="w-full p-1 px-2 text-base font-bold">
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-400 block mb-1">Alias / Titre</label>
-                            <input type="text" class="w-full p-1 px-2 text-sm">
+                            <input type="text" id="char_alias" class="w-full p-1 px-2 text-sm">
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-400 block mb-1">Race</label>
-                            <input type="text" class="w-full p-1 px-2 text-sm">
+                            <input type="text" id="char_race" class="w-full p-1 px-2 text-sm">
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-400 block mb-1">Sexe</label>
-                            <input type="text" class="w-full p-1 px-2 text-sm">
+                            <input type="text" id="char_sex" class="w-full p-1 px-2 text-sm">
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-400 block mb-1">Taille / Âge</label>
-                            <input type="text" class="w-full p-1 px-2 text-sm">
+                            <input type="text" id="char_age" class="w-full p-1 px-2 text-sm">
                         </div>
                     </div>
                 </section>
@@ -311,14 +253,14 @@
                             </thead>
                             <tbody>
                                 <tr>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="0"></td>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]"></td>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]"></td>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="5"></td>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
-                                    <td><input type="number" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
+                                    <td><input type="number" id="stat_lvl" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
+                                    <td><input type="number" id="stat_pa" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="0"></td>
+                                    <td><input type="number" id="stat_shield" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]"></td>
+                                    <td><input type="number" id="stat_bp" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]"></td>
+                                    <td><input type="number" id="stat_hp" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="5"></td>
+                                    <td><input type="number" id="stat_init" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
+                                    <td><input type="number" id="stat_def" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
+                                    <td><input type="number" id="stat_res" class="w-full text-center bg-transparent border-0 border-b border-[#004e53]" value="1"></td>
                                 </tr>
                             </tbody>
                         </table>
@@ -332,10 +274,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">CONSTITUTION</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8" title="Score">
+                                <input type="number" id="attr_con" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_con_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -343,10 +285,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">FORCE</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
+                                <input type="number" id="attr_str" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_str_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -354,10 +296,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">PHYSIQUE</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
+                                <input type="number" id="attr_phy" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_phy_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -365,10 +307,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">DISTANCE</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
+                                <input type="number" id="attr_dist" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_dist_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -376,10 +318,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">SAVOIR</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
+                                <input type="number" id="attr_know" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_know_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -387,10 +329,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">SOCIAL</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
+                                <input type="number" id="attr_soc" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_soc_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -398,10 +340,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">PILOTAGE</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
+                                <input type="number" id="attr_pilot" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_pilot_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -409,10 +351,10 @@
                         <div class="attr-box bg-[#00141a] p-1 border border-[#004e53] flex flex-col justify-between">
                             <label class="block text-[10px] text-gray-400 mb-1 text-center font-bold">EXPLORATION</label>
                             <div class="flex items-end gap-1">
-                                <input type="number" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
+                                <input type="number" id="attr_expl" value="1" class="w-2/3 text-center text-xl font-bold bg-transparent border-none focus:ring-0 p-0 h-8">
                                 <div class="w-1/3 flex flex-col items-center">
                                     <span class="text-[8px] text-[#004e53] mb-0 leading-none">BONUS</span>
-                                    <input type="number" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
+                                    <input type="number" id="attr_expl_bonus" value="0" class="attr-bonus-input w-full text-center text-sm text-[#00f0ff] bg-[rgba(0,0,0,0.2)] border border-[#004e53] p-0 h-6">
                                 </div>
                             </div>
                         </div>
@@ -438,42 +380,42 @@
                     <div class="space-y-2">
                         <div>
                             <label class="text-[10px] text-gray-400">Race (Détails)</label>
-                            <input type="text" class="w-full p-1 text-xs">
+                            <input type="text" id="race_details" class="w-full p-1 text-xs">
                         </div>
                         
                         <div class="flex items-center justify-between border border-[#004e53] p-1 px-2 bg-[#00141a]">
                             <span class="text-xs">Utilisateur Force</span>
                             <div class="flex gap-2 text-xs">
                                 <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="force" class="mr-1 accent-[#00f0ff]"> Oui
+                                    <input type="radio" name="force" id="force_yes" value="yes" class="mr-1 accent-[#00f0ff]"> Oui
                                 </label>
                                 <label class="flex items-center cursor-pointer">
-                                    <input type="radio" name="force" class="mr-1 accent-[#00f0ff]" checked> Non
+                                    <input type="radio" name="force" id="force_no" value="no" class="mr-1 accent-[#00f0ff]" checked> Non
                                 </label>
                             </div>
                         </div>
 
                         <div class="flex items-center justify-between border border-[#004e53] p-1 px-2 bg-[#00141a]">
                             <span class="text-xs">Âge Catégorie</span>
-                            <select class="bg-transparent text-xs text-[#00f0ff] border-none outline-none text-right">
-                                <option>Jeune</option>
-                                <option>Ancien</option>
-                                <option>Standard</option>
+                            <select id="age_cat" class="bg-transparent text-xs text-[#00f0ff] border-none outline-none text-right">
+                                <option value="Jeune">Jeune</option>
+                                <option value="Ancien">Ancien</option>
+                                <option value="Standard" selected>Standard</option>
                             </select>
                         </div>
 
                         <div>
                             <label class="text-[10px] text-gray-400">Cybernétique</label>
-                            <input type="text" class="w-full p-1 text-xs">
+                            <input type="text" id="cybernetics" class="w-full p-1 text-xs">
                         </div>
 
                         <div>
                             <label class="text-[10px] text-gray-400">Langues Vivantes</label>
-                            <textarea class="w-full p-1 text-xs h-12 bg-transparent resize-none"></textarea>
+                            <textarea id="lang_live" class="w-full p-1 text-xs h-12 bg-transparent resize-none"></textarea>
                         </div>
                         <div>
                             <label class="text-[10px] text-gray-400">Langues Mortes</label>
-                            <input type="text" class="w-full p-1 text-xs">
+                            <input type="text" id="lang_dead" class="w-full p-1 text-xs">
                         </div>
                     </div>
                 </section>
@@ -486,7 +428,7 @@
                 <h2 class="text-lg text-[#00f0ff] mb-2 border-b border-[#004e53] flex justify-between">
                     <span>Talents & Capacités</span>
                 </h2>
-                <textarea class="w-full h-48 bg-transparent border border-[#004e53] p-2 text-xs leading-relaxed text-[#c4f0ff] focus:bg-[#00141a]" placeholder="Listez vos talents ici..."></textarea>
+                <textarea id="talents" class="w-full h-48 bg-transparent border border-[#004e53] p-2 text-xs leading-relaxed text-[#c4f0ff] focus:bg-[#00141a]" placeholder="Listez vos talents ici..."></textarea>
             </section>
 
             <section class="section-box p-3 clip-corner-inv h-auto">
@@ -495,55 +437,189 @@
                 <div class="grid grid-cols-2 gap-2 mb-2">
                     <div>
                         <label class="text-[10px] text-gray-400 block">Armure (PA)</label>
-                        <input type="text" class="w-full p-1 text-yellow-400 font-bold text-sm">
+                        <input type="text" id="inv_pa" class="w-full p-1 text-yellow-400 font-bold text-sm">
                     </div>
                     <div>
                         <label class="text-[10px] text-gray-400 block">Bouclier Psy (BP)</label>
-                        <input type="text" class="w-full p-1 text-purple-400 font-bold text-sm">
+                        <input type="text" id="inv_bp" class="w-full p-1 text-purple-400 font-bold text-sm">
                     </div>
                 </div>
 
                 <div class="mb-2">
                     <label class="text-[10px] text-gray-400 block mb-1">Armes</label>
                     <div class="space-y-1">
-                        <input type="text" class="w-full p-1 text-xs" placeholder="Arme Principale">
-                        <input type="text" class="w-full p-1 text-xs" placeholder="Arme Secondaire">
+                        <input type="text" id="wep_main" class="w-full p-1 text-xs" placeholder="Arme Principale">
+                        <input type="text" id="wep_sec" class="w-full p-1 text-xs" placeholder="Arme Secondaire">
                     </div>
                 </div>
 
                 <div>
                     <label class="text-[10px] text-gray-400 block mb-1">Kits & Divers</label>
-                    <textarea class="w-full h-20 bg-transparent border border-[#004e53] p-2 text-xs" placeholder="Medpacs, Outils, Crédits..."></textarea>
+                    <textarea id="inv_misc" class="w-full h-20 bg-transparent border border-[#004e53] p-2 text-xs" placeholder="Medpacs, Outils, Crédits..."></textarea>
                 </div>
             </section>
         </div>
 
-        <div class="mt-6 text-center border-t border-[#004e53] pt-4 no-print">
+        <div class="mt-6 flex flex-wrap justify-center gap-4 border-t border-[#004e53] pt-4 no-print">
+            <button onclick="exportJSON()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-xs">
+                Sauvegarder (JSON)
+            </button>
+            
+            <button onclick="document.getElementById('importFile').click()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-xs">
+                Charger (JSON)
+            </button>
+            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(this)">
+
+            <button onclick="resetSheet()" class="bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-xs border border-transparent hover:border-red-500">
+                Réinitialiser
+            </button>
+
             <button onclick="window.print()" class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-6 py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-sm">
                 Imprimer / PDF
             </button>
-            <p class="text-xs text-gray-600 mt-2">© SWTOR RPG System Fan Sheet</p>
         </div>
+        <p class="text-center text-xs text-gray-600 mt-2 mb-4">© SWTOR RPG System Fan Sheet</p>
 
     </div>
 
     <script>
-        // Image Upload Preview Logic
-        document.getElementById('imgUpload').addEventListener('change', function(event) {
+        // --- LOGIQUE IMAGE PREVIEW ---
+        const imgInput = document.getElementById('imgUpload');
+        const imgPreview = document.getElementById('imgPreview');
+        let currentImageData = null; // Stocke l'image en Base64
+
+        imgInput.addEventListener('change', function(event) {
             const file = event.target.files[0];
             if (file) {
                 const reader = new FileReader();
                 reader.onload = function(e) {
-                    const preview = document.getElementById('imgPreview');
-                    preview.style.backgroundImage = `url(${e.target.result})`;
-                    preview.classList.remove('hidden');
+                    currentImageData = e.target.result;
+                    imgPreview.style.backgroundImage = `url(${currentImageData})`;
+                    imgPreview.classList.remove('hidden');
                 }
                 reader.readAsDataURL(file);
             }
         });
+
+        // --- EXPORT JSON ---
+        function exportJSON() {
+            const data = {};
+            // Sélectionne tous les éléments qui ont un ID pertinent
+            document.querySelectorAll('input[id], textarea[id], select[id]').forEach(el => {
+                if (el.type === 'file') return;
+                
+                // Gestion spécifique des radios/checkbox
+                if (el.type === 'radio') {
+                    if (el.checked) data[el.name] = el.value;
+                } else if (el.type === 'checkbox') {
+                    data[el.id] = el.checked;
+                } else {
+                    data[el.id] = el.value;
+                }
+            });
+
+            // Ajoute l'image si présente
+            if (currentImageData) {
+                data['char_image_data'] = currentImageData;
+            }
+
+            // Création du fichier
+            const fileName = (data['char_name'] || 'personnage') + '_swtor.json';
+            const jsonStr = JSON.stringify(data, null, 2);
+            const blob = new Blob([jsonStr], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = fileName;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        }
+
+        // --- IMPORT JSON ---
+        function importJSON(inputElement) {
+            const file = inputElement.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+
+                    // 1. Restaurer les champs
+                    for (const [key, value] of Object.entries(data)) {
+                        if (key === 'char_image_data') continue; 
+                        
+                        // Cas spécial Radio Buttons (Force User)
+                        if (key === 'force') {
+                            const radio = document.querySelector(`input[name="force"][value="${value}"]`);
+                            if (radio) radio.checked = true;
+                            continue;
+                        }
+
+                        const el = document.getElementById(key);
+                        if (el) {
+                            if (el.type === 'checkbox') {
+                                el.checked = value;
+                            } else {
+                                el.value = value;
+                            }
+                        }
+                    }
+
+                    // 2. Restaurer l'image
+                    if (data['char_image_data']) {
+                        currentImageData = data['char_image_data'];
+                        imgPreview.style.backgroundImage = `url(${currentImageData})`;
+                        imgPreview.classList.remove('hidden');
+                    } else {
+                        resetImage();
+                    }
+
+                    alert("Fiche chargée avec succès !");
+                } catch (err) {
+                    console.error(err);
+                    alert("Erreur lors de la lecture du fichier JSON.");
+                }
+            };
+            reader.readAsText(file);
+            inputElement.value = ''; // Permet de recharger le même fichier si besoin
+        }
+
+        // --- REINITIALISER LA FICHE ---
+        function resetSheet() {
+            if (!confirm("Attention : Vous êtes sur le point d'effacer toutes les données de la fiche. Continuer ?")) {
+                return;
+            }
+
+            // 1. Reset des inputs texte, nombre, select et textarea
+            document.querySelectorAll('input, textarea, select').forEach(el => {
+                if (el.type === 'file') return;
+                
+                if (el.type === 'radio' || el.type === 'checkbox') {
+                    if (el.defaultChecked) {
+                        el.checked = true;
+                    } else {
+                        el.checked = false;
+                    }
+                } else {
+                    // Remet la valeur par défaut (value="1" etc) ou vide
+                    el.value = el.defaultValue; 
+                }
+            });
+
+            // 2. Reset Image
+            resetImage();
+        }
+
+        function resetImage() {
+            currentImageData = null;
+            imgPreview.style.backgroundImage = '';
+            imgPreview.classList.add('hidden');
+            imgInput.value = ''; 
+        }
     </script>
 </body>
 </html>
-
-```
-
