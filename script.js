@@ -13,6 +13,26 @@ document.querySelectorAll('textarea').forEach(textarea => {
     autoExpandTextarea(textarea);
 });
 
+// --- WEAPONS MANAGEMENT ---
+function addWeapon() {
+    const container = document.getElementById('weapons-container');
+    const weaponItem = document.createElement('div');
+    weaponItem.className = 'weapon-item flex gap-1';
+    weaponItem.innerHTML = `
+        <input type="text" class="weapon-input w-full p-1 text-xs" placeholder="Arme">
+        <button onclick="deleteWeapon(this)" type="button" class="text-xs bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">-</button>
+    `;
+    container.appendChild(weaponItem);
+}
+
+function deleteWeapon(button) {
+    const container = document.getElementById('weapons-container');
+    // Don't delete if it's the last weapon
+    if (container.querySelectorAll('.weapon-item').length > 1) {
+        button.parentElement.remove();
+    }
+}
+
 // --- LOGIQUE IMAGE PREVIEW ---
 const imgInput = document.getElementById('imgUpload');
 const imgPreview = document.getElementById('imgPreview');
@@ -121,6 +141,15 @@ function exportJSON() {
         }
     });
 
+    // Ajoute les armes dynamiques
+    const weapons = [];
+    document.querySelectorAll('.weapon-input').forEach(input => {
+        if (input.value) weapons.push(input.value);
+    });
+    if (weapons.length > 0) {
+        data['weapons'] = weapons;
+    }
+
     // Ajoute l'image si présente
     if (currentImageData) {
         data['char_image_data'] = currentImageData;
@@ -165,7 +194,7 @@ function importJSON(inputElement) {
 
             // 1. Restaurer les champs
             for (const [key, value] of Object.entries(data)) {
-                if (key === 'char_image_data') continue; 
+                if (key === 'char_image_data' || key === 'weapons') continue; 
                 
                 // Cas spécial Radio Buttons (Force User)
                 if (key === 'force') {
@@ -181,6 +210,43 @@ function importJSON(inputElement) {
                     } else {
                         el.value = value;
                     }
+                }
+            }
+
+            // 1.5 Restaurer les armes dynamiques
+            if (data['weapons'] && Array.isArray(data['weapons'])) {
+                const container = document.getElementById('weapons-container');
+                // Clear existing weapons except the first one
+                const items = container.querySelectorAll('.weapon-item');
+                for (let i = items.length - 1; i > 0; i--) {
+                    items[i].remove();
+                }
+                // Set the first weapon
+                const firstInput = container.querySelector('.weapon-input');
+                if (firstInput && data['weapons'][0]) {
+                    firstInput.value = data['weapons'][0];
+                }
+                // Add remaining weapons
+                for (let i = 1; i < data['weapons'].length; i++) {
+                    addWeapon();
+                    const lastInput = container.querySelector('.weapon-item:last-child .weapon-input');
+                    if (lastInput) lastInput.value = data['weapons'][i];
+                }
+            } else if (data['wep_main'] || data['wep_sec']) {
+                // Backward compatibility: convert old wep_main/wep_sec to new weapons array
+                const container = document.getElementById('weapons-container');
+                const items = container.querySelectorAll('.weapon-item');
+                for (let i = items.length - 1; i > 0; i--) {
+                    items[i].remove();
+                }
+                const firstInput = container.querySelector('.weapon-input');
+                if (firstInput) {
+                    firstInput.value = data['wep_main'] || '';
+                }
+                if (data['wep_sec']) {
+                    addWeapon();
+                    const lastInput = container.querySelector('.weapon-item:last-child .weapon-input');
+                    if (lastInput) lastInput.value = data['wep_sec'];
                 }
             }
 

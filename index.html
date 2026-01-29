@@ -281,10 +281,15 @@
                 </div>
 
                 <div class="mb-2">
-                    <label class="text-[12px] text-gray-400 block mb-1">Armes</label>
-                    <div class="space-y-1">
-                        <input type="text" id="wep_main" class="w-full p-1 text-xs" placeholder="Arme Principale">
-                        <input type="text" id="wep_sec" class="w-full p-1 text-xs" placeholder="Arme Secondaire">
+                    <div class="flex justify-between items-center mb-1">
+                        <label class="text-[12px] text-gray-400 block">Armes</label>
+                        <button onclick="addWeapon()" type="button" class="text-xs bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">+</button>
+                    </div>
+                    <div id="weapons-container" class="space-y-1">
+                        <div class="weapon-item flex gap-1">
+                            <input type="text" class="weapon-input w-full p-1 text-xs" placeholder="Arme Principale">
+                            <button onclick="deleteWeapon(this)" type="button" class="text-xs bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">-</button>
+                        </div>
                     </div>
                 </div>
 
