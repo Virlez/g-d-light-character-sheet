@@ -12,6 +12,9 @@ if (imgInput) {
                 currentImageData = e.target.result;
                 imgPreview.style.backgroundImage = `url(${currentImageData})`;
                 imgPreview.classList.remove('hidden');
+                // Hide photo label when image is loaded
+                const photoLabel = imgInput.closest('.section-box')?.querySelector('label[for="imgUpload"]');
+                if (photoLabel) photoLabel.classList.add('hidden');
             }
             reader.readAsDataURL(file);
         }
@@ -204,5 +207,9 @@ function resetImage() {
     currentImageData = null;
     imgPreview.style.backgroundImage = '';
     imgPreview.classList.add('hidden');
-    if (imgInput) imgInput.value = ''; 
-}
+    if (imgInput) imgInput.value = '';
+    // Show photo label again when image is reset
+    const photoLabel = imgInput?.closest('.section-box')?.querySelector('label[for="imgUpload"]');
+    if (photoLabel) photoLabel.classList.remove('hidden');
+} 
+
