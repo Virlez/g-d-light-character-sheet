@@ -124,6 +124,8 @@ textarea.auto-expand {
     border-radius: 8px;
     position: relative;
     overflow: hidden;
+    /* Maintain a sensible minimum height on the site (approx. old `h-48`) */
+    min-height: 12rem;
     /* subtle inner border/glow to match holo theme */
     box-shadow: inset 0 0 0 2px rgba(0,78,83,0.06), inset 0 10px 30px rgba(0,0,0,0.25);
 }
@@ -292,7 +294,17 @@ input[type=number]::-webkit-outer-spin-button {
     input::placeholder, textarea::placeholder { color: #999; }
     .attr-box { background-color: white !important; border: 1px solid #000 !important; }
     .attr-bonus-input { border: 1px solid #000 !important; background-color: white !important; }
-    .grid-cols-1 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
+     /* Use a single-column flow when printing to avoid horizontal overflow
+         and truncation of the rightmost column. Some Tailwind utility
+         classes map to different grid layouts on-screen; for print we
+         enforce a simple single-column layout so content fits A4. */
+      .grid-cols-1 { display: grid !important; grid-template-columns: repeat(1, 1fr) !important; gap: 10px !important; }
+      /* Print: place main left content and photo/side column side-by-side
+          (2fr / 1fr) so the photo appears next to the 'Renseignements Généraux' block. */
+    #main_grid { display: grid !important; grid-template-columns: 2fr 1fr !important; gap: 12px !important; align-items: start !important; }
+    /* Ensure the right column stacks its content with the photo first */
+    #main_grid > div:nth-child(2) { display: flex !important; flex-direction: column !important; }
+    #main_grid > div:nth-child(2) .char-img-placeholder { order: -1 !important; margin-bottom: 0.5rem !important; }
     .lg\:col-span-2 { grid-column: span 2 !important; }
     header { flex-direction: row !important; margin-bottom: 10px !important; padding-bottom: 5px !important; border-bottom: 2px solid black !important; }
     .space-y-6 > * + * { margin-top: 0.5rem !important; }
@@ -308,6 +320,23 @@ input[type=number]::-webkit-outer-spin-button {
     .sw-table th, .sw-table td { border-color: #000 !important; color: #000 !important; }
     .bg-black\/30 { background: white !important; }
     .bg-\[\#00141a\] { background: white !important; }
+     /* Print-specific image fixes: ensure the inline <img> preview is printed
+         (some browsers disable background-images or clip complex shapes). */
+     .char-img-placeholder { clip-path: none !important; border-radius: 0 !important; overflow: visible !important; }
+     #imgPreview { background-image: none !important; display: block !important; }
+     #imgPreviewImg { display: block !important; visibility: visible !important; width: 100% !important; height: auto !important; max-height: 240px !important; object-fit: cover !important; }
+     /* Ensure the clickable overlay label does not cover the image in print */
+     .char-img-placeholder > label { display: none !important; }
+     /* Put the preview on top for print and remove absolute positioning that can clip it */
+     .char-img-placeholder, #imgPreview { position: static !important; z-index: auto !important; }
+      /* Make the photo area more square on print: enforce 1:1 aspect ratio
+          and constrain size so it doesn't stretch the layout. Center it. */
+      .char-img-placeholder { aspect-ratio: 1 / 1 !important; max-width: 12rem !important; margin-left: auto !important; margin-right: auto !important; min-height: unset !important; }
+      #imgPreviewImg { aspect-ratio: 1 / 1 !important; max-height: 12rem !important; width: 100% !important; height: 100% !important; object-fit: cover !important; }
+
+    /* Photo will remain in the right column's normal flow (no absolute positioning). */
+    #main_grid { position: static !important; }
+    .char-img-placeholder { position: static !important; width: 100% !important; height: auto !important; }
 }
 
 /* When the exotic checkbox is hidden we want the inventory row to reflow
