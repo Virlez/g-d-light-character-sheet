@@ -174,6 +174,12 @@ function importJSON(inputElement) {
                 currentImageData = data['char_image_data'];
                 imgPreview.style.backgroundImage = `url(${currentImageData})`;
                 imgPreview.classList.remove('hidden');
+                // Hide photo label text when image is loaded from JSON
+                const photoLabel = imgInput.closest('.section-box')?.querySelector('label[for="imgUpload"]');
+                if (photoLabel) {
+                    const textDiv = photoLabel.querySelector('div');
+                    if (textDiv) textDiv.classList.add('hidden');
+                }
             } else {
                 resetImage();
             }
