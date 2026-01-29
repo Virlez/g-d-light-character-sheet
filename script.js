@@ -26,13 +26,16 @@ const toNumber = v => {
 };
 
 function computeDerivedStats() {
-    // Copy inv_pa -> stat_pa (keep raw value)
+    // Copy inv_pa -> stat_pa, inv_bp -> stat_bp, inv_shield -> stat_shield
     const invPa = document.getElementById('inv_pa');
     const invBp = document.getElementById('inv_bp');
+    const invShield = document.getElementById('inv_shield');
     const statPa = document.getElementById('stat_pa');
     const statBp = document.getElementById('stat_bp');
+    const statShield = document.getElementById('stat_shield');
     if (invPa && statPa) statPa.value = invPa.value || '';
     if (invBp && statBp) statBp.value = invBp.value || '';
+    if (invShield && statShield) statShield.value = invShield.value || '';
 
     // stat_hp = (attr_con + attr_con_bonus) * 5
     const attrCon = document.getElementById('attr_con');
@@ -71,7 +74,7 @@ function computeDerivedStats() {
 // Attach listeners and compute derived stats once DOM is ready
 document.addEventListener('DOMContentLoaded', function() {
     // Attach listeners to keep fields in sync
-    ['inv_pa','inv_bp','attr_con','attr_con_bonus','attr_dist','attr_dist_bonus','attr_phy','attr_phy_bonus'].forEach(id => {
+    ['inv_pa','inv_bp','inv_shield','attr_con','attr_con_bonus','attr_dist','attr_dist_bonus','attr_phy','attr_phy_bonus'].forEach(id => {
         const el = document.getElementById(id);
         if (el) el.addEventListener('input', computeDerivedStats);
     });
