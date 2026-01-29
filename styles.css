@@ -144,6 +144,15 @@ textarea.auto-expand {
     z-index: 20; /* sits above preview */
     pointer-events: none; /* let clicks reach the label */
 }
+
+/* When an image is present, hide the placeholder icon/text visually,
+   but keep the label clickable so the user can replace the image. */
+.char-img-placeholder.has-image .placeholder-content {
+    opacity: 0;
+    transform: scale(0.98);
+    transition: opacity 180ms ease, transform 180ms ease;
+    visibility: hidden;
+}
 .char-img-placeholder .placeholder-icon {
     width: 48px;
     height: 48px;

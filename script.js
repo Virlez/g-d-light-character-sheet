@@ -47,12 +47,10 @@ if (imgInput) {
                 currentImageData = e.target.result;
                 imgPreview.style.backgroundImage = `url(${currentImageData})`;
                 imgPreview.classList.remove('hidden');
-                // Hide photo label text when image is loaded, but keep the label clickable for changing
-                const photoLabel = imgInput.closest('div')?.querySelector('label[for="imgUpload"]');
-                if (photoLabel) {
-                    const textDiv = photoLabel.querySelector('div');
-                    if (textDiv) textDiv.classList.add('hidden');
-                }
+                // Mark container as having an image so placeholder content disappears,
+                // but keep the label clickable to allow replacing the image.
+                const container = imgInput.closest('.char-img-placeholder');
+                if (container) container.classList.add('has-image');
             }
             reader.readAsDataURL(file);
         }
@@ -255,12 +253,10 @@ function importJSON(inputElement) {
                 currentImageData = data['char_image_data'];
                 imgPreview.style.backgroundImage = `url(${currentImageData})`;
                 imgPreview.classList.remove('hidden');
-                // Hide photo label text when image is loaded from JSON, but keep label clickable
-                const photoLabel = imgInput.closest('div')?.querySelector('label[for="imgUpload"]');
-                if (photoLabel) {
-                    const textDiv = photoLabel.querySelector('div');
-                    if (textDiv) textDiv.classList.add('hidden');
-                }
+                // Mark container as having an image so placeholder content disappears,
+                // but keep the label clickable to allow replacing the image.
+                const container = imgInput.closest('.char-img-placeholder');
+                if (container) container.classList.add('has-image');
             } else {
                 resetImage();
             }
@@ -314,12 +310,9 @@ function resetImage() {
     imgPreview.style.backgroundImage = '';
     imgPreview.classList.add('hidden');
     if (imgInput) imgInput.value = '';
-    // Show photo label text again when image is reset
-    const photoLabel = imgInput?.closest('div')?.querySelector('label[for="imgUpload"]');
-    if (photoLabel) {
-        const textDiv = photoLabel.querySelector('div');
-        if (textDiv) textDiv.classList.remove('hidden');
-    }
+    // Remove the has-image marker so the placeholder content becomes visible again
+    const container = imgInput?.closest('.char-img-placeholder');
+    if (container) container.classList.remove('has-image');
 }
 
 
