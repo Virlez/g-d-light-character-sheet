@@ -67,6 +67,17 @@ input:focus, textarea:focus, select:focus {
     background: rgba(0, 30, 40, 0.8);
 }
 
+/* Textarea auto-expand based on content */
+textarea {
+    resize: vertical;
+    overflow: hidden;
+    min-height: auto;
+}
+
+textarea.auto-expand {
+    height: auto;
+}
+
 /* --- TABLEAU --- */
 .sw-table th {
     color: var(--holo-blue);

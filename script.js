@@ -1,3 +1,18 @@
+// --- AUTO-EXPAND TEXTAREAS ---
+function autoExpandTextarea(textarea) {
+    textarea.style.height = 'auto';
+    textarea.style.height = textarea.scrollHeight + 'px';
+}
+
+document.querySelectorAll('textarea').forEach(textarea => {
+    // Auto-expand on input
+    textarea.addEventListener('input', function() {
+        autoExpandTextarea(this);
+    });
+    // Initial expansion if there's pre-filled content
+    autoExpandTextarea(textarea);
+});
+
 // --- LOGIQUE IMAGE PREVIEW ---
 const imgInput = document.getElementById('imgUpload');
 const imgPreview = document.getElementById('imgPreview');
