@@ -64,6 +64,39 @@ const toNumber = v => {
     return Number.isFinite(n) ? n : 0;
 };
 
+// Update displayed inv_pa based on base value, exotic checkbox and armor select
+function updateInvPA() {
+    const invPaEl = document.getElementById('inv_pa');
+    if (!invPaEl) return;
+    const armorSelect = document.getElementById('armor_type');
+    const exoticEl = document.getElementById('armor_exotic');
+
+    // Determine base value (priority: armor select -> stored base -> current value)
+    let base = 0;
+    if (armorSelect && armorSelect.value) {
+        // Special case: 'none' means explicitly no armor -> clear value and ignore exotic
+        if (armorSelect.value === 'none') {
+            invPaEl.dataset.base = '';
+            invPaEl.value = '';
+            computeDerivedStats();
+            return;
+        }
+        base = toNumber(armorSelect.value);
+        invPaEl.dataset.base = String(base);
+    } else if (invPaEl.dataset && invPaEl.dataset.base) {
+        base = toNumber(invPaEl.dataset.base);
+    } else {
+        base = toNumber(invPaEl.value);
+        invPaEl.dataset.base = String(base);
+    }
+
+    const isExotic = exoticEl && exoticEl.checked;
+    const multiplier = isExotic ? 1.1 : 1;
+    const final = Math.round(base * multiplier);
+    invPaEl.value = final || '';
+    computeDerivedStats();
+}
+
 function computeDerivedStats() {
     // Copy inv_pa -> stat_pa, inv_bp -> stat_bp, inv_shield -> stat_shield
     const invPa = document.getElementById('inv_pa');
@@ -120,6 +153,58 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Compute once on load
     computeDerivedStats();
+
+    // Armor type <select> sync: set inv_pa when armor type is chosen,
+    // keep the select in sync when inv_pa is edited manually and apply exotic modifier.
+    const armorSelect = document.getElementById('armor_type');
+    const invPaEl = document.getElementById('inv_pa');
+    const exoticEl = document.getElementById('armor_exotic');
+
+    if (armorSelect) {
+        armorSelect.addEventListener('change', function() {
+            // store base and update display
+            if (armorSelect.value === 'none') {
+                // clear PA when 'Aucune' is selected
+                invPaEl.dataset.base = '';
+                invPaEl.value = '';
+                computeDerivedStats();
+            } else {
+                invPaEl.dataset.base = armorSelect.value || '';
+                updateInvPA();
+            }
+        });
+        // apply on load if a selection is present
+        if (armorSelect.value) {
+            invPaEl && (invPaEl.dataset.base = armorSelect.value);
+        }
+    }
+
+    if (invPaEl) {
+        invPaEl.addEventListener('input', function() {
+            // when user edits PA manually, treat that as new base (remove exotic multiplier)
+            const n = toNumber(this.value);
+            const isExotic = exoticEl && exoticEl.checked;
+            const base = isExotic ? Math.round(n / 1.1) : n;
+            this.dataset.base = String(base || 0);
+            // sync armor select when exact base matches known presets
+            if (armorSelect) {
+                if (base === 40 || base === 60 || base === 80) {
+                    armorSelect.value = String(base);
+                } else {
+                    armorSelect.value = '';
+                }
+            }
+            computeDerivedStats();
+        });
+    }
+
+    if (exoticEl) {
+        exoticEl.addEventListener('change', function() {
+            updateInvPA();
+        });
+    }
+    // Apply initial calculation (if any)
+    updateInvPA();
 });
 
 // --- EXPORT JSON ---
@@ -259,6 +344,15 @@ function importJSON(inputElement) {
                 if (container) container.classList.add('has-image');
             } else {
                 resetImage();
+            }
+
+
+            // If armor type was present in imported data, ensure inv_pa follows it (handles 'none')
+            try {
+                if (typeof updateInvPA === 'function') updateInvPA();
+            } catch (e) {
+                // fallback
+                computeDerivedStats();
             }
 
             alert("Fiche chargée avec succès !");

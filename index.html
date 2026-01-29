@@ -277,20 +277,33 @@
             <section class="section-box p-3 clip-corner-inv">
                 <h2 class="text-lg text-[#00f0ff] mb-2 border-b border-[#004e53]">Inventaire</h2>
                 
-                    <div class="grid grid-cols-3 gap-2 mb-2">
-                    <div>
-                        <label class="text-[12px] text-gray-400 block">Armure (PA)</label>
-                        <input type="number" id="inv_pa" class="w-full p-1 text-yellow-400 font-bold text-sm" inputmode="numeric" step="1" min="0">
+                    <div class="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2 items-end">
+                        <div>
+                            <label class="text-[12px] text-gray-400 block">Type d'armure</label>
+                            <select id="armor_type" class="w-full p-1 text-sm bg-transparent border border-[#004e53] text-[#00f0ff]">
+                                <option value="none" selected>Aucune</option>
+                                <option value="40">Légère</option>
+                                <option value="60">Intermédiaire</option>
+                                <option value="80">Lourde</option>
+                            </select>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <input type="checkbox" id="armor_exotic" class="accent-[#00f0ff]">
+                            <label for="armor_exotic" class="text-[12px] text-gray-400">Est en composant exotique ?</label>
+                        </div>
+                        <div>
+                            <label class="text-[12px] text-gray-400 block">Armure (PA)</label>
+                            <input type="number" id="inv_pa" class="w-full p-1 text-yellow-400 font-bold text-sm" inputmode="numeric" step="1" min="0">
+                        </div>
+                        <div>
+                            <label class="text-[12px] text-gray-400 block">Bouclier Psy (BP)</label>
+                            <input type="number" id="inv_bp" class="w-full p-1 text-purple-400 font-bold text-sm" inputmode="numeric" step="1" min="0">
+                        </div>
+                        <div>
+                            <label class="text-[12px] text-gray-400 block">Bouclier</label>
+                            <input type="number" id="inv_shield" class="w-full p-1 text-blue-400 font-bold text-sm" inputmode="numeric" step="1" min="0">
+                        </div>
                     </div>
-                    <div>
-                        <label class="text-[12px] text-gray-400 block">Bouclier Psy (BP)</label>
-                        <input type="number" id="inv_bp" class="w-full p-1 text-purple-400 font-bold text-sm" inputmode="numeric" step="1" min="0">
-                    </div>
-                    <div>
-                        <label class="text-[12px] text-gray-400 block">Bouclier</label>
-                        <input type="number" id="inv_shield" class="w-full p-1 text-blue-400 font-bold text-sm" inputmode="numeric" step="1" min="0">
-                    </div>
-                </div>
 
                 <div class="mb-2">
                     <div class="flex justify-between items-center mb-1">
