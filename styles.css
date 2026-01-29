@@ -145,48 +145,40 @@ input[type=number]::-webkit-outer-spin-button {
 
 /* --- OPTIMISATION IMPRESSION (A4) --- */
 @media print {
-    @page { margin: 8mm; size: A4 portrait; }
+    @page { margin: 5mm; size: A4 portrait; }
     body {
         background: white !important; color: black !important;
         -webkit-print-color-adjust: exact; print-color-adjust: exact;
-        zoom: 100%;
-        font-size: 12pt !important;
-        line-height: 1.4 !important;
+        zoom: 90%;
     }
     .scanline, .no-print, .char-img-placeholder::before { display: none !important; }
     .min-h-screen { min-height: 0 !important; }
-    .p-4, .md\:p-8 { padding: 4px 2px !important; }
+    .p-4, .md\:p-8 { padding: 0 !important; }
     .max-w-5xl { max-width: 100% !important; width: 100% !important; }
-    h1 { font-size: 18pt !important; margin: 6pt 0 !important; color: #000 !important; }
-    h2 { font-size: 14pt !important; margin: 4pt 0 2pt 0 !important; color: #000 !important; }
-    h3 { font-size: 12pt !important; margin: 2pt 0 !important; color: #000 !important; }
-    .text-\[\#00f0ff\] { color: #000 !important; text-shadow: none !important; filter: none !important; }
-    .section-box { border: 1px solid #000 !important; background: white !important; margin-bottom: 6pt !important; padding: 4pt !important; page-break-inside: avoid; }
+    h1, h2, h3, .text-\[\#00f0ff\] { color: #000 !important; text-shadow: none !important; filter: none !important; }
+    .section-box { border: 2px solid #000 !important; background: none !important; margin-bottom: 8px !important; page-break-inside: avoid; }
     .section-box::before, .section-box::after { display: none; }
-    label { font-size: 11pt !important; font-weight: bold !important; display: block !important; margin-bottom: 2pt !important; }
     input, textarea, select {
-        border: 1px solid #000 !important;
-        color: black !important; background: white !important; font-size: 11pt !important;
-        box-shadow: none !important; padding: 2px 3px !important; width: 100% !important;
-        box-sizing: border-box !important;
+        border: 1px solid #ccc !important; border-bottom: 1px solid #000 !important;
+        color: black !important; background: white !important; font-size: 10pt !important;
+        box-shadow: none !important; padding: 2px !important;
     }
     input::placeholder, textarea::placeholder { color: transparent; }
-    .attr-box { background-color: white !important; border: 1px solid #000 !important; padding: 3px !important; }
-    .attr-bonus-input { border: 1px solid #000 !important; background-color: white !important; font-size: 11pt !important; }
-    .grid-cols-1 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 6px !important; }
-    .lg\:col-span-2 { grid-column: span 1 !important; }
-    header { flex-direction: row !important; margin-bottom: 8pt !important; padding-bottom: 4pt !important; border-bottom: 2px solid black !important; }
-    .space-y-6 > * + * { margin-top: 3pt !important; }
-    .space-y-3 > * + * { margin-top: 2pt !important; }
-    .mb-4 { margin-bottom: 2pt !important; }
-    .p-4 { padding: 3px 2px !important; }
+    .attr-box { background-color: white !important; border: 1px solid #000 !important; }
+    .attr-bonus-input { border: 1px solid #000 !important; background-color: #f0f0f0 !important; }
+    .grid-cols-1 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
+    .lg\:col-span-2 { grid-column: span 2 !important; }
+    header { flex-direction: row !important; margin-bottom: 10px !important; padding-bottom: 5px !important; border-bottom: 2px solid black !important; }
+    .space-y-6 > * + * { margin-top: 0.5rem !important; }
+    .space-y-3 > * + * { margin-top: 0.25rem !important; }
+    .mb-4 { margin-bottom: 0.25rem !important; }
+    .p-4 { padding: 0.5rem !important; }
     .md\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
-    .mt-6 { margin-top: 3pt !important; }
+    .mt-6 { margin-top: 0.5rem !important; }
     .md\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
-    .h-64 { height: auto !important; min-height: 80px; }
-    .h-16 { height: auto !important; }
-    .h-32 { height: auto !important; }
-    .sw-table { font-size: 10pt !important; width: 100% !important; }
-    .sw-table th, .sw-table td { border: 1px solid #000 !important; color: #000 !important; padding: 2pt 3pt !important; }
-    .bg-black\/30 { background: white !important; }
+    .h-64 { height: auto !important; min-height: 150px; }
+    .h-16 { height: 3rem !important; }
+    .h-32 { height: 6rem !important; }
+    .sw-table th, .sw-table td { border-color: #000 !important; color: #000 !important; }
+    .bg-black\/30 { background: #eee !important; }
 }
