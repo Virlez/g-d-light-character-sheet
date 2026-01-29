@@ -1,0 +1,173 @@
+:root {
+    --holo-blue: #00f0ff;
+    --holo-bg: #051014;
+    --holo-dim: #004e53;
+    --glass: rgba(0, 240, 255, 0.05);
+}
+
+body {
+    background-color: #000;
+    background-image: 
+        radial-gradient(circle at 50% 50%, #0a1f26 0%, #000000 100%),
+        linear-gradient(rgba(0, 240, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0, 240, 255, 0.03) 1px, transparent 1px);
+    background-size: 100% 100%, 20px 20px, 20px 20px;
+    color: #c4f0ff;
+    font-family: 'Rajdhani', sans-serif;
+}
+
+h1, h2, h3, .header-font {
+    font-family: 'Orbitron', sans-serif;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+}
+
+/* --- FORME COUPÉE (Style Star Wars) --- */
+.clip-corner {
+    clip-path: polygon(
+        10px 0, 100% 0, 
+        100% calc(100% - 10px), calc(100% - 10px) 100%, 
+        0 100%, 0 10px
+    );
+}
+
+.clip-corner-inv {
+    clip-path: polygon(
+        0 0, calc(100% - 10px) 0, 
+        100% 10px, 100% 100%, 
+        10px 100%, 0 calc(100% - 10px)
+    );
+}
+
+/* --- CHAMPS DE FORMULAIRE --- */
+input, textarea, select {
+    background: rgba(0, 20, 30, 0.6);
+    border: 1px solid var(--holo-dim);
+    color: var(--holo-blue);
+    transition: all 0.3s ease;
+    font-family: 'Rajdhani', sans-serif;
+    font-weight: 500;
+}
+
+input:focus, textarea:focus, select:focus {
+    outline: none;
+    border-color: var(--holo-blue);
+    box-shadow: 0 0 10px rgba(0, 240, 255, 0.3);
+    background: rgba(0, 30, 40, 0.8);
+}
+
+/* --- TABLEAU --- */
+.sw-table th {
+    color: var(--holo-blue);
+    border-bottom: 2px solid var(--holo-dim);
+    padding: 4px;
+    font-size: 0.8rem;
+}
+.sw-table td {
+    border: 1px solid rgba(0, 78, 83, 0.3);
+    padding: 2px;
+}
+
+/* --- BOITES DE SECTION --- */
+.section-box {
+    border: 1px solid var(--holo-dim);
+    position: relative;
+    background: var(--glass);
+}
+
+.section-box::before {
+    content: '';
+    position: absolute;
+    top: -1px; left: -1px;
+    width: 10px; height: 10px;
+    border-top: 2px solid var(--holo-blue);
+    border-left: 2px solid var(--holo-blue);
+}
+.section-box::after {
+    content: '';
+    position: absolute;
+    bottom: -1px; right: -1px;
+    width: 10px; height: 10px;
+    border-bottom: 2px solid var(--holo-blue);
+    border-right: 2px solid var(--holo-blue);
+}
+
+/* --- IMAGE --- */
+.char-img-placeholder {
+    background: repeating-linear-gradient(
+        45deg,
+        rgba(0, 78, 83, 0.2),
+        rgba(0, 78, 83, 0.2) 10px,
+        rgba(0, 78, 83, 0.3) 10px,
+        rgba(0, 78, 83, 0.3) 20px
+    );
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 2px dashed var(--holo-dim);
+}
+
+/* Nettoyage input number */
+input[type=number]::-webkit-inner-spin-button, 
+input[type=number]::-webkit-outer-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+}
+
+/* --- EFFET SCANLINE --- */
+.scanline {
+    width: 100%;
+    height: 100px;
+    z-index: 10;
+    background: linear-gradient(0deg, rgba(255, 255, 255, 0) 0%, rgba(0, 240, 255, 0.1) 50%, rgba(0,0,0,0) 100%);
+    opacity: 0.1;
+    position: absolute;
+    bottom: 100%;
+    animation: scanline 10s linear infinite;
+    pointer-events: none;
+}
+
+@keyframes scanline {
+    0% { bottom: 100%; }
+    100% { bottom: -100%; }
+}
+
+/* --- OPTIMISATION IMPRESSION (A4) --- */
+@media print {
+    @page { margin: 5mm; size: A4 portrait; }
+    body {
+        background: white !important; color: black !important;
+        -webkit-print-color-adjust: exact; print-color-adjust: exact;
+        zoom: 90%;
+    }
+    .scanline, .no-print, .char-img-placeholder::before { display: none !important; }
+    .min-h-screen { min-height: 0 !important; }
+    .p-4, .md\:p-8 { padding: 0 !important; }
+    .max-w-5xl { max-width: 100% !important; width: 100% !important; }
+    h1, h2, h3, .text-\[\#00f0ff\] { color: #000 !important; text-shadow: none !important; filter: none !important; }
+    .section-box { border: 2px solid #000 !important; background: none !important; margin-bottom: 8px !important; page-break-inside: avoid; }
+    .section-box::before, .section-box::after { display: none; }
+    input, textarea, select {
+        border: 1px solid #ccc !important; border-bottom: 1px solid #000 !important;
+        color: black !important; background: white !important; font-size: 10pt !important;
+        box-shadow: none !important; padding: 2px !important;
+    }
+    input::placeholder, textarea::placeholder { color: transparent; }
+    .attr-box { background-color: white !important; border: 1px solid #000 !important; }
+    .attr-bonus-input { border: 1px solid #000 !important; background-color: #f0f0f0 !important; }
+    .grid-cols-1 { display: grid !important; grid-template-columns: repeat(3, 1fr) !important; gap: 10px !important; }
+    .lg\:col-span-2 { grid-column: span 2 !important; }
+    header { flex-direction: row !important; margin-bottom: 10px !important; padding-bottom: 5px !important; border-bottom: 2px solid black !important; }
+    .space-y-6 > * + * { margin-top: 0.5rem !important; }
+    .space-y-3 > * + * { margin-top: 0.25rem !important; }
+    .mb-4 { margin-bottom: 0.25rem !important; }
+    .p-4 { padding: 0.5rem !important; }
+    .md\:grid-cols-4 { grid-template-columns: repeat(4, 1fr) !important; }
+    .mt-6 { margin-top: 0.5rem !important; }
+    .md\:grid-cols-2 { grid-template-columns: repeat(2, 1fr) !important; }
+    .h-64 { height: auto !important; min-height: 150px; }
+    .h-16 { height: 3rem !important; }
+    .h-32 { height: 6rem !important; }
+    .sw-table th, .sw-table td { border-color: #000 !important; color: #000 !important; }
+    .bg-black\/30 { background: #eee !important; }
+}
