@@ -978,7 +978,7 @@ async function exportScreenshotPDF() {
         console.error(err);
         alert('Erreur lors de la génération du PDF.');
     } finally {
-        if (btn) { btn.disabled = false; btn.textContent = 'Exporter (screenshot PDF)'; }
+        if (btn) { btn.disabled = false; btn.textContent = 'Exporter en PDF'; }
     }
 }
 
