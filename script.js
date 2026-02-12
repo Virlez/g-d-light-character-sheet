@@ -737,6 +737,17 @@ async function exportScreenshotPDF() {
         // with static, high-contrast elements. Render that clone with html2canvas.
         const clone = target.cloneNode(true);
 
+        // Ensure cloned <select> elements reflect the current selection.
+        // Some browsers reset selectedIndex/value to the first option on clone.
+        try {
+            const origSelects = target.querySelectorAll('select');
+            const cloneSelects = clone.querySelectorAll('select');
+            const len = Math.min(origSelects.length, cloneSelects.length);
+            for (let i = 0; i < len; i++) {
+                cloneSelects[i].value = origSelects[i].value;
+            }
+        } catch (e) {}
+
         // Normalize styles on the clone to improve readability
         clone.style.background = window.getComputedStyle(target).backgroundColor || '#001111';
         clone.style.boxSizing = 'border-box';
