@@ -335,3 +335,22 @@ input[type=number]::-webkit-outer-spin-button {
         grid-template-columns: repeat(4, minmax(0, 1fr)) !important;
     }
 }
+
+/* --- RESPONSIVE (mobile / portrait) --- */
+@media (max-width: 640px) {
+    /* Reduce overall scale on narrow screens while keeping desktop intact */
+    html { font-size: 16px; }
+
+    /* Weapons table: 5 columns is too tight on portrait screens */
+    .weapons-headers,
+    .weapon-item {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+    }
+
+    /* Make the last cell (Total + delete) span full width */
+    .weapons-headers > :nth-child(5),
+    .weapon-item > :nth-child(5) {
+        grid-column: 1 / -1;
+    }
+}
