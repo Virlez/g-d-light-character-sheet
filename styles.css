@@ -239,6 +239,27 @@ textarea {
 /* Visual hint when in move mode */
 .char-img-placeholder.move-mode { outline: 2px dashed rgba(0,240,255,0.18); }
 
+/* Zoom controls (appear next to move button) */
+.char-img-placeholder .zoom-controls {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 30;
+    display: none;
+    gap: 6px;
+}
+.char-img-placeholder.has-image .zoom-controls { display: flex; }
+.char-img-placeholder .zoom-controls button {
+    background: rgba(0,46,51,0.9);
+    color: var(--holo-blue);
+    border: 1px solid var(--holo-dim);
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+}
+.char-img-placeholder .zoom-controls button:hover { background: rgba(0,240,255,0.06); color: black; }
+
 /* Nettoyage input number */
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 

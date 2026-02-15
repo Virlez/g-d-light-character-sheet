@@ -241,6 +241,54 @@ function ensureMoveUI() {
             btn._moveListenerAttached = true;
         }
 
+        // --- Zoom controls and state ---
+        // maintain per-placeholder image state: scale (%) and position {x,y}
+        placeholder._imgState = placeholder._imgState || { scale: 100, pos: { x: 50, y: 50 } };
+        const state = placeholder._imgState;
+
+        // create zoom controls
+        let zoomWrap = placeholder.querySelector('.zoom-controls');
+        if (!zoomWrap) {
+            zoomWrap = document.createElement('div');
+            zoomWrap.className = 'zoom-controls';
+            const zin = document.createElement('button'); zin.type = 'button'; zin.className = 'zoom-in'; zin.textContent = '+';
+            const zout = document.createElement('button'); zout.type = 'button'; zout.className = 'zoom-out'; zout.textContent = '−';
+            zoomWrap.appendChild(zin);
+            zoomWrap.appendChild(zout);
+            // place zoom controls to the left of move handle visually
+            placeholder.appendChild(zoomWrap);
+        }
+
+        const updateBgSize = () => {
+            if (!imgPreview) return;
+            imgPreview.style.backgroundSize = (state.scale ? String(state.scale) + '%' : 'cover');
+            imgPreview.style.backgroundPosition = `${state.pos.x}% ${state.pos.y}%`;
+        };
+
+        const clampScale = s => Math.max(20, Math.min(400, s));
+        const setScale = (s) => { state.scale = clampScale(Math.round(s)); updateBgSize(); };
+
+        // Attach zoom handlers once
+        if (!placeholder._zoomHandlersAttached) {
+            const zinBtn = placeholder.querySelector('.zoom-in');
+            const zoutBtn = placeholder.querySelector('.zoom-out');
+            if (zinBtn) zinBtn.addEventListener('click', () => setScale(state.scale + 10));
+            if (zoutBtn) zoutBtn.addEventListener('click', () => setScale(state.scale - 10));
+
+            // wheel to zoom when in move-mode
+            const onWheel = (ev) => {
+                if (!placeholder.classList.contains('move-mode')) return;
+                ev.preventDefault();
+                const delta = ev.deltaY;
+                if (delta < 0) setScale(state.scale + 8); else setScale(state.scale - 8);
+            };
+            placeholder.addEventListener('wheel', onWheel, { passive: false });
+            placeholder._zoomHandlersAttached = true;
+        }
+
+        // apply initial state to preview
+        updateBgSize();
+
         // pointer handlers on the placeholder so users can drag anywhere
         const onPointerDown = (ev) => {
             if (!placeholder.classList.contains('move-mode')) return;
@@ -867,9 +915,13 @@ function resetImage() {
         // remove move UI if present
         const btn = container.querySelector('.move-handle');
         if (btn) btn.remove();
+        const zoom = container.querySelector('.zoom-controls');
+        if (zoom) zoom.remove();
         container.classList.remove('move-mode');
         const label = container.querySelector('label[for="imgUpload"]');
         if (label) label.style.pointerEvents = '';
+        // clear stored state
+        try { delete container._imgState; container._moveHandlersAttached = false; container._zoomHandlersAttached = false; } catch(e) {}
     }
 }
 
