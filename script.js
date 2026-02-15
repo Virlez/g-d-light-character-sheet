@@ -253,8 +253,13 @@ function ensureMoveUI() {
             zoomWrap.className = 'zoom-controls';
             const zin = document.createElement('button'); zin.type = 'button'; zin.className = 'zoom-in'; zin.textContent = '+';
             const zout = document.createElement('button'); zout.type = 'button'; zout.className = 'zoom-out'; zout.textContent = '−';
-            zoomWrap.appendChild(zin);
+            const slider = document.createElement('input');
+            slider.type = 'range'; slider.className = 'zoom-slider';
+            slider.min = 20; slider.max = 400; slider.step = 1;
+            // order: minus, slider, plus (user requested inverted positions)
             zoomWrap.appendChild(zout);
+            zoomWrap.appendChild(slider);
+            zoomWrap.appendChild(zin);
             // place zoom controls to the left of move handle visually
             placeholder.appendChild(zoomWrap);
         }
@@ -263,6 +268,11 @@ function ensureMoveUI() {
             if (!imgPreview) return;
             imgPreview.style.backgroundSize = (state.scale ? String(state.scale) + '%' : 'cover');
             imgPreview.style.backgroundPosition = `${state.pos.x}% ${state.pos.y}%`;
+            // sync slider if present
+            try {
+                const s = placeholder.querySelector('.zoom-slider');
+                if (s) s.value = String(state.scale);
+            } catch (e) {}
         };
 
         const clampScale = s => Math.max(20, Math.min(400, s));
@@ -272,8 +282,10 @@ function ensureMoveUI() {
         if (!placeholder._zoomHandlersAttached) {
             const zinBtn = placeholder.querySelector('.zoom-in');
             const zoutBtn = placeholder.querySelector('.zoom-out');
+            const sliderEl = placeholder.querySelector('.zoom-slider');
             if (zinBtn) zinBtn.addEventListener('click', () => setScale(state.scale + 10));
             if (zoutBtn) zoutBtn.addEventListener('click', () => setScale(state.scale - 10));
+            if (sliderEl) sliderEl.addEventListener('input', (ev) => setScale(Number(ev.target.value)));
 
             // wheel to zoom when in move-mode
             const onWheel = (ev) => {
@@ -935,7 +947,8 @@ async function exportScreenshotPDF() {
 
         // Hide elements that should not appear in the export (controls, overlays)
         const hidden = [];
-        document.querySelectorAll('.no-print, .scanline').forEach(el => {
+        // also hide interactive image controls (move/zoom) so PDF is clean
+        document.querySelectorAll('.no-print, .scanline, .move-handle, .zoom-controls').forEach(el => {
             hidden.push({ el, vis: el.style.visibility });
             el.style.visibility = 'hidden';
         });
@@ -957,6 +970,8 @@ async function exportScreenshotPDF() {
             for (let i = 0; i < len; i++) {
                 cloneSelects[i].value = origSelects[i].value;
             }
+            // remove move-mode state from clone so outlines/controls don't show
+            clone.querySelectorAll('.char-img-placeholder.move-mode').forEach(el => el.classList.remove('move-mode'));
         } catch (e) {}
 
         // Normalize styles on the clone to improve readability

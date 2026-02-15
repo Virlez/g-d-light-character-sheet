@@ -239,14 +239,20 @@ textarea {
 /* Visual hint when in move mode */
 .char-img-placeholder.move-mode { outline: 2px dashed rgba(0,240,255,0.18); }
 
-/* Zoom controls (appear next to move button) */
+/* Zoom controls (bottom-center of the photo card) */
 .char-img-placeholder .zoom-controls {
     position: absolute;
-    top: 8px;
-    right: 8px;
+    bottom: 8px;
+    left: 50%;
+    transform: translateX(-50%);
     z-index: 30;
     display: none;
-    gap: 6px;
+    gap: 8px;
+    align-items: center;
+    background: rgba(0,20,30,0.24);
+    padding: 6px 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(0,78,83,0.08);
 }
 .char-img-placeholder.has-image .zoom-controls { display: flex; }
 .char-img-placeholder .zoom-controls button {
@@ -260,6 +266,41 @@ textarea {
 }
 .char-img-placeholder .zoom-controls button:hover { background: rgba(0,240,255,0.06); color: black; }
 
+/* Zoom slider (visible only in move-mode) */
+.char-img-placeholder .zoom-controls .zoom-slider {
+    display: none;
+    width: 220px;
+    height: 28px;
+    -webkit-appearance: none;
+    background: transparent;
+}
+/* show slider only when in move-mode (user can move/zoom) */
+.char-img-placeholder.move-mode .zoom-controls .zoom-slider { display: inline-block; }
+
+/* hide the '+' zoom-in button when not in move-mode */
+.char-img-placeholder .zoom-controls .zoom-in { display: none; }
+.char-img-placeholder.move-mode .zoom-controls .zoom-in { display: inline-block; }
+/* hide the '-' zoom-out button when not in move-mode */
+.char-img-placeholder .zoom-controls .zoom-out { display: none; }
+.char-img-placeholder.move-mode .zoom-controls .zoom-out { display: inline-block; }
+
+/* track */
+.char-img-placeholder .zoom-controls .zoom-slider::-webkit-slider-runnable-track {
+    height: 6px; border-radius: 6px; background: rgba(0,240,255,0.12);
+}
+.char-img-placeholder .zoom-controls .zoom-slider::-moz-range-track {
+    height: 6px; border-radius: 6px; background: rgba(0,240,255,0.12);
+}
+/* thumb */
+.char-img-placeholder .zoom-controls .zoom-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 18px; height: 18px; border-radius: 6px;
+    background: var(--holo-blue); border: 2px solid rgba(0,20,30,0.8);
+    margin-top: -6px; /* center on track */
+}
+.char-img-placeholder .zoom-controls .zoom-slider::-moz-range-thumb {
+    width: 18px; height: 18px; border-radius: 6px;
+    background: var(--holo-blue); border: 2px solid rgba(0,20,30,0.8);
+}
 /* Nettoyage input number */
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 
