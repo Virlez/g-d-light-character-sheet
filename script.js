@@ -117,22 +117,60 @@ const imgPreview = document.getElementById('imgPreview');
 let currentImageData = null; // Stocke l'image en Base64
 
 if (imgInput) {
+    // Unified file handler used by both input change and drop events
+    const handleImageFile = (file) => {
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            currentImageData = e.target.result;
+            if (imgPreview) imgPreview.style.backgroundImage = `url(${currentImageData})`;
+            if (imgPreview) imgPreview.classList.remove('hidden');
+            // Mark container as having an image so placeholder content disappears,
+            // but keep the label clickable to allow replacing the image.
+            const container = imgInput.closest('.char-img-placeholder');
+            if (container) container.classList.add('has-image');
+        };
+        reader.readAsDataURL(file);
+    };
+
     imgInput.addEventListener('change', function(event) {
         const file = event.target.files[0];
-        if (file) {
-            const reader = new FileReader();
-            reader.onload = function(e) {
-                currentImageData = e.target.result;
-                imgPreview.style.backgroundImage = `url(${currentImageData})`;
-                imgPreview.classList.remove('hidden');
-                // Mark container as having an image so placeholder content disappears,
-                // but keep the label clickable to allow replacing the image.
-                const container = imgInput.closest('.char-img-placeholder');
-                if (container) container.classList.add('has-image');
-            }
-            reader.readAsDataURL(file);
-        }
+        handleImageFile(file);
     });
+
+    // Add drag & drop support on the placeholder container
+    try {
+        const placeholder = imgInput.closest('.char-img-placeholder');
+        if (placeholder) {
+            const onDragOver = (ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; placeholder.classList.add('dragover'); };
+            const onDragEnter = (ev) => { ev.preventDefault(); placeholder.classList.add('dragover'); };
+            const onDragLeave = (ev) => { ev.preventDefault(); placeholder.classList.remove('dragover'); };
+            const onDrop = (ev) => {
+                ev.preventDefault();
+                placeholder.classList.remove('dragover');
+                const dt = ev.dataTransfer;
+                if (!dt) return;
+                const file = dt.files && dt.files[0];
+                if (file && file.type && file.type.startsWith('image/')) {
+                    handleImageFile(file);
+                } else if (dt.items && dt.items.length) {
+                    // fallback: try to extract file from items (some browsers)
+                    for (let i = 0; i < dt.items.length; i++) {
+                        const it = dt.items[i];
+                        if (it.kind === 'file') {
+                            const f = it.getAsFile();
+                            if (f && f.type && f.type.startsWith('image/')) { handleImageFile(f); break; }
+                        }
+                    }
+                }
+            };
+
+            placeholder.addEventListener('dragover', onDragOver);
+            placeholder.addEventListener('dragenter', onDragEnter);
+            placeholder.addEventListener('dragleave', onDragLeave);
+            placeholder.addEventListener('drop', onDrop);
+        }
+    } catch (e) {}
 }
 
 // --- DERIVED STATS AUTOMATIONS ---

@@ -203,6 +203,21 @@ textarea {
     text-transform: uppercase;
 }
 
+/* Drag & drop visual state */
+.char-img-placeholder.dragover {
+    outline: 3px dashed rgba(0,240,255,0.25);
+    box-shadow: inset 0 0 0 2px rgba(0,240,255,0.04), 0 8px 30px rgba(0,240,255,0.05);
+    transform: translateY(-2px);
+}
+.char-img-placeholder.dragover .placeholder-text {
+    color: #001419; /* contrast when highlighted */
+    background: var(--holo-blue);
+    padding: 6px 10px;
+    border-radius: 6px;
+    display: inline-block;
+    transform: translateY(-2px);
+}
+
 /* Nettoyage input number */
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 
