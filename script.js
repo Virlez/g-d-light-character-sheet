@@ -129,6 +129,11 @@ if (imgInput) {
             // but keep the label clickable to allow replacing the image.
             const container = imgInput.closest('.char-img-placeholder');
             if (container) container.classList.add('has-image');
+            if (imgPreview) {
+                imgPreview.style.backgroundSize = 'cover';
+                imgPreview.style.backgroundPosition = '50% 50%';
+            }
+            try { ensureMoveUI(); } catch (e) {}
         };
         reader.readAsDataURL(file);
     };
@@ -153,6 +158,21 @@ if (imgInput) {
                 const file = dt.files && dt.files[0];
                 if (file && file.type && file.type.startsWith('image/')) {
                     handleImageFile(file);
+                    // ensure move UI is available after drop (FileReader is async)
+                    setTimeout(() => {
+                        try { ensureMoveUI(); } catch (e) {}
+                        try {
+                            // try to enter move-mode automatically so the user can drag immediately
+                            const pl = imgInput.closest('.char-img-placeholder');
+                            if (pl) {
+                                pl.classList.add('move-mode');
+                                const lbl = pl.querySelector('label[for="imgUpload"]');
+                                if (lbl) lbl.style.pointerEvents = 'none';
+                                const btn = pl.querySelector('.move-handle');
+                                if (btn) btn.textContent = 'Terminer';
+                            }
+                        } catch (e) {}
+                    }, 80);
                 } else if (dt.items && dt.items.length) {
                     // fallback: try to extract file from items (some browsers)
                     for (let i = 0; i < dt.items.length; i++) {
@@ -174,6 +194,98 @@ if (imgInput) {
 }
 
 // --- DERIVED STATS AUTOMATIONS ---
+// --- Image move / pan controls ---
+function ensureMoveUI() {
+    try {
+        const placeholder = imgInput.closest('.char-img-placeholder');
+        if (!placeholder) return;
+
+        // create move button if not present
+        let btn = placeholder.querySelector('.move-handle');
+        if (!btn) {
+            btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'move-handle';
+            btn.textContent = 'Déplacer';
+            // ensure visible even if CSS specificity issues occur
+            btn.style.display = 'inline-block';
+            btn.style.zIndex = '99999';
+            btn.style.pointerEvents = 'auto';
+            placeholder.appendChild(btn);
+        }
+
+        // state for panning
+        let isPanning = false;
+        let startX = 0, startY = 0;
+        let pos = { x: 50, y: 50 };
+
+        const updateBgPos = () => {
+            if (imgPreview) imgPreview.style.backgroundPosition = `${pos.x}% ${pos.y}%`;
+        };
+
+        const clamp = v => Math.max(0, Math.min(100, v));
+
+        // toggle move mode (attach handlers only once)
+        if (!btn._moveListenerAttached) {
+            const toggleMove = function(e) {
+                e && e.stopPropagation && e.stopPropagation();
+                const moving = placeholder.classList.toggle('move-mode');
+                btn.textContent = moving ? 'Terminer' : 'Déplacer';
+                // when entering move-mode, allow pointer events to reach the preview
+                const label = placeholder.querySelector('label[for="imgUpload"]');
+                if (label) label.style.pointerEvents = moving ? 'none' : '';
+            };
+            // Use pointerdown only to support mouse and touch without causing
+            // a duplicate 'click' event that would toggle twice.
+            btn.addEventListener('pointerdown', function(e){ e.preventDefault(); toggleMove(e); });
+            btn._moveListenerAttached = true;
+        }
+
+        // pointer handlers on the placeholder so users can drag anywhere
+        const onPointerDown = (ev) => {
+            if (!placeholder.classList.contains('move-mode')) return;
+            if (!imgPreview) return;
+            isPanning = true;
+            startX = ev.clientX;
+            startY = ev.clientY;
+            // read current background position if set
+            const bp = (imgPreview.style.backgroundPosition || '50% 50%').split(' ');
+            pos.x = parseFloat(bp[0]) || 50;
+            pos.y = parseFloat(bp[1]) || 50;
+            ev.target.setPointerCapture && ev.target.setPointerCapture(ev.pointerId);
+        };
+
+        const onPointerMove = (ev) => {
+            if (!isPanning) return;
+            ev.preventDefault();
+            const dx = ev.clientX - startX;
+            const dy = ev.clientY - startY;
+            const rect = imgPreview.getBoundingClientRect();
+            if (rect.width === 0 || rect.height === 0) return;
+            const dxPct = (dx / rect.width) * 100;
+            const dyPct = (dy / rect.height) * 100;
+            pos.x = clamp(pos.x + dxPct);
+            pos.y = clamp(pos.y + dyPct);
+            startX = ev.clientX;
+            startY = ev.clientY;
+            updateBgPos();
+        };
+
+        const onPointerUp = (ev) => {
+            if (!isPanning) return;
+            isPanning = false;
+            try { ev.target.releasePointerCapture && ev.target.releasePointerCapture(ev.pointerId); } catch(e) {}
+        };
+
+        // attach once
+        if (!placeholder._moveHandlersAttached) {
+            placeholder.addEventListener('pointerdown', onPointerDown);
+            window.addEventListener('pointermove', onPointerMove);
+            window.addEventListener('pointerup', onPointerUp);
+            placeholder._moveHandlersAttached = true;
+        }
+    } catch (e) {}
+}
 const toNumber = v => {
     if (v === null || v === undefined) return 0;
     const n = Number(String(v).replace(/[^0-9.-]+/g, ''));
@@ -662,6 +774,7 @@ function importJSON(inputElement) {
                 // but keep the label clickable to allow replacing the image.
                 const container = imgInput.closest('.char-img-placeholder');
                 if (container) container.classList.add('has-image');
+                    try { ensureMoveUI(); } catch (e) {}
             } else {
                 resetImage();
             }
@@ -749,7 +862,15 @@ function resetImage() {
     if (imgInput) imgInput.value = '';
     // Remove the has-image marker so the placeholder content becomes visible again
     const container = imgInput?.closest('.char-img-placeholder');
-    if (container) container.classList.remove('has-image');
+    if (container) {
+        container.classList.remove('has-image');
+        // remove move UI if present
+        const btn = container.querySelector('.move-handle');
+        if (btn) btn.remove();
+        container.classList.remove('move-mode');
+        const label = container.querySelector('label[for="imgUpload"]');
+        if (label) label.style.pointerEvents = '';
+    }
 }
 
 // --- EXPORT VUE (SCREENSHOT) EN PDF ---

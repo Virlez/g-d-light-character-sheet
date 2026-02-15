@@ -218,6 +218,27 @@ textarea {
     transform: translateY(-2px);
 }
 
+/* Move handle shown when an image is present to enable repositioning */
+.char-img-placeholder .move-handle {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    z-index: 30;
+    background: rgba(0,46,51,0.9);
+    color: var(--holo-blue);
+    border: 1px solid var(--holo-dim);
+    padding: 6px 8px;
+    font-size: 0.75rem;
+    border-radius: 6px;
+    cursor: pointer;
+    display: none;
+}
+.char-img-placeholder.has-image .move-handle { display: inline-block; }
+.char-img-placeholder.move-mode .move-handle { background: var(--holo-blue); color: #001419; }
+
+/* Visual hint when in move mode */
+.char-img-placeholder.move-mode { outline: 2px dashed rgba(0,240,255,0.18); }
+
 /* Nettoyage input number */
 input[type=number]::-webkit-inner-spin-button, 
 input[type=number]::-webkit-outer-spin-button { 
