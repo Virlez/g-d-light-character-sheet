@@ -407,10 +407,34 @@
         // Load app script with cache-busting query so updates appear reliably
         (function () {
             const v = Date.now();
-            const s = document.createElement('script');
-            s.src = 'script.js?v=' + v;
-            s.defer = true;
-            document.body.appendChild(s);
+            const logicScript = document.createElement('script');
+            logicScript.src = 'js/app-logic.js?v=' + v;
+            logicScript.defer = true;
+            logicScript.onload = function () {
+                const domScript = document.createElement('script');
+                domScript.src = 'js/app-dom.js?v=' + v;
+                domScript.defer = true;
+                domScript.onload = function () {
+                    const persistenceScript = document.createElement('script');
+                    persistenceScript.src = 'js/app-persistence.js?v=' + v;
+                    persistenceScript.defer = true;
+                    persistenceScript.onload = function () {
+                        const weaponsScript = document.createElement('script');
+                        weaponsScript.src = 'js/app-weapons.js?v=' + v;
+                        weaponsScript.defer = true;
+                        weaponsScript.onload = function () {
+                            const appScript = document.createElement('script');
+                            appScript.src = 'script.js?v=' + v;
+                            appScript.defer = true;
+                            document.body.appendChild(appScript);
+                        };
+                        document.body.appendChild(weaponsScript);
+                    };
+                    document.body.appendChild(persistenceScript);
+                };
+                document.body.appendChild(domScript);
+            };
+            document.body.appendChild(logicScript);
         })();
     </script>
 </body>

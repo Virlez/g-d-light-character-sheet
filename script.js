@@ -1,4 +1,9 @@
 // --- AUTO-EXPAND TEXTAREAS ---
+const AppLogic = window.CharacterSheetLogic;
+const AppDom = window.CharacterSheetDom;
+const AppPersistence = window.CharacterSheetPersistence;
+const AppWeapons = window.CharacterSheetWeapons;
+
 function autoExpandTextarea(textarea) {
     textarea.style.height = 'auto';
     textarea.style.height = textarea.scrollHeight + 'px';
@@ -19,97 +24,25 @@ function addWeapon() {
 }
 
 function deleteWeapon(button) {
-    const container = document.getElementById('weapons-container');
-    const item = button.closest('.weapon-item');
-    if (!item) return;
-    // Don't delete if it's the last weapon
-    if (container.querySelectorAll('.weapon-item').length > 1) {
-        item.remove();
-        computeAllWeaponTotals();
-    }
+    AppWeapons.deleteWeapon(button, { computeAllWeaponTotals });
 }
 
-// Create and append a weapon row. Accepts optional data: {name, base, attr, bonus}
 function renderWeapon(data = {}) {
-    const container = document.getElementById('weapons-container');
-    const weaponItem = document.createElement('div');
-    weaponItem.setAttribute('data-testid', 'weapon-row');
-    weaponItem.className = 'weapon-item grid grid-cols-5 gap-2 items-center';
-    // Match the static HTML layout: five grid cells, last cell contains total + delete button
-    weaponItem.innerHTML = `
-        <input type="text" data-testid="weapon-name" class="weapon-name w-full p-1 text-sm" placeholder="Nom arme">
-        <input type="number" data-testid="weapon-base" class="weapon-base w-full p-1 text-sm text-right" value="0" min="0">
-        <select data-testid="weapon-attr" class="weapon-attr w-full p-1 text-sm">
-                <option value="none">Aucun</option>
-                <option value="phy">Physique</option>
-                <option value="dist">Distance</option>
-            </select>
-        <input type="number" data-testid="weapon-bonus" class="weapon-bonus w-full p-1 text-sm text-right" value="0" step="1" min="0">
-        <div class="flex items-center gap-2">
-            <input type="number" data-testid="weapon-total" class="weapon-total w-full p-1 text-sm bg-transparent text-right" value="0" readonly>
-            <button type="button" data-testid="delete-weapon-button" class="weapon-delete text-sm bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">-</button>
-        </div>
-    `;
-    container.appendChild(weaponItem);
-
-    // Populate defaults
-    const nameEl = weaponItem.querySelector('.weapon-name');
-    const baseEl = weaponItem.querySelector('.weapon-base');
-    const attrEl = weaponItem.querySelector('.weapon-attr');
-    const bonusEl = weaponItem.querySelector('.weapon-bonus');
-    const totalEl = weaponItem.querySelector('.weapon-total');
-    const delBtn = weaponItem.querySelector('.weapon-delete');
-
-    if (data.name) nameEl.value = data.name;
-    if (typeof data.base !== 'undefined') baseEl.value = data.base;
-    if (data.attr) attrEl.value = data.attr;
-    if (typeof data.bonus !== 'undefined') bonusEl.value = data.bonus;
-
-    // wire events
-    [nameEl, baseEl, attrEl, bonusEl].forEach(el => {
-        el.addEventListener('input', computeAllWeaponTotals);
-        el.addEventListener('change', computeAllWeaponTotals);
+    return AppWeapons.renderWeapon(data, {
+        computeAllWeaponTotals,
+        deleteWeapon
     });
-    delBtn.addEventListener('click', function() { deleteWeapon(this); });
-
-    // initial total
-    computeAllWeaponTotals();
-    // no debug calc displayed
 }
 
-// Wire an existing weapon-item element so its inputs trigger recalculation
 function wireWeaponRow(item) {
-    if (!item) return;
-    const nameEl = item.querySelector('.weapon-name');
-    const baseEl = item.querySelector('.weapon-base');
-    const attrEl = item.querySelector('.weapon-attr');
-    const bonusEl = item.querySelector('.weapon-bonus');
-    const delBtn = item.querySelector('.weapon-delete');
-
-    [nameEl, baseEl, attrEl, bonusEl].forEach(el => {
-        if (!el) return;
-        el.addEventListener('input', computeAllWeaponTotals);
-        el.addEventListener('change', computeAllWeaponTotals);
+    AppWeapons.wireWeaponRow(item, {
+        computeAllWeaponTotals,
+        deleteWeapon
     });
-    if (delBtn) delBtn.addEventListener('click', function() { deleteWeapon(this); });
-    // no debug calc to attach
 }
 
 function computeAllWeaponTotals() {
-    const phyTotal = toNumber(document.getElementById('attr_phy')?.value) + toNumber(document.getElementById('attr_phy_bonus')?.value);
-    const distTotal = toNumber(document.getElementById('attr_dist')?.value) + toNumber(document.getElementById('attr_dist_bonus')?.value);
-    document.querySelectorAll('.weapon-item').forEach(item => {
-        const base = toNumber(item.querySelector('.weapon-base')?.value);
-        const attr = item.querySelector('.weapon-attr')?.value || 'phy';
-        const bonus = toNumber(item.querySelector('.weapon-bonus')?.value);
-        const totalEl = item.querySelector('.weapon-total');
-        let attrVal = 0;
-        if (attr === 'dist') attrVal = distTotal;
-        else if (attr === 'phy') attrVal = phyTotal;
-        else attrVal = 0; // 'none' or unknown => contributes 0
-        const total = base + attrVal + bonus;
-        if (totalEl) totalEl.value = total;
-    });
+    AppWeapons.computeAllWeaponTotals({ toNumber });
 }
 
 // --- LOGIQUE IMAGE PREVIEW ---
@@ -347,11 +280,7 @@ function ensureMoveUI() {
         }
     } catch (e) {}
 }
-const toNumber = v => {
-    if (v === null || v === undefined) return 0;
-    const n = Number(String(v).replace(/[^0-9.-]+/g, ''));
-    return Number.isFinite(n) ? n : 0;
-};
+const toNumber = (value) => AppLogic.toNumber(value);
 
 // Update displayed inv_pa based on base value, exotic checkbox and armor select
 function updateInvPA() {
@@ -360,113 +289,69 @@ function updateInvPA() {
     const armorSelect = document.getElementById('armor_type');
     const exoticEl = document.getElementById('armor_exotic');
 
-    // Determine base value (priority: armor select -> stored base -> current value)
-    let base = 0;
-    if (armorSelect && armorSelect.value) {
-        // Special case: 'none' means explicitly no armor -> clear value and ignore exotic
-        if (armorSelect.value === 'none') {
-            invPaEl.dataset.base = '';
-            invPaEl.value = '';
-            computeDerivedStats();
-            return;
-        }
-        base = toNumber(armorSelect.value);
-        invPaEl.dataset.base = String(base);
-    } else if (invPaEl.dataset && invPaEl.dataset.base) {
-        base = toNumber(invPaEl.dataset.base);
-    } else {
-        base = toNumber(invPaEl.value);
-        invPaEl.dataset.base = String(base);
-    }
+    const inventoryPa = AppLogic.calculateInventoryPa({
+        armorType: armorSelect?.value,
+        storedBase: invPaEl.dataset?.base,
+        currentValue: invPaEl.value,
+        isExotic: !!(exoticEl && exoticEl.checked)
+    });
 
-    const isExotic = exoticEl && exoticEl.checked;
-    const multiplier = isExotic ? 1.1 : 1;
-    const final = Math.round(base * multiplier);
-    invPaEl.value = final || '';
+    invPaEl.dataset.base = inventoryPa.clear ? '' : String(inventoryPa.base);
+    invPaEl.value = inventoryPa.finalValue;
     computeDerivedStats();
 }
 
 function computeDerivedStats() {
-    // Copy inv_pa -> stat_pa, inv_bp -> stat_bp, inv_shield -> stat_shield
     const invPa = document.getElementById('inv_pa');
     const invBp = document.getElementById('inv_bp');
     const invShield = document.getElementById('inv_shield');
     const statPa = document.getElementById('stat_pa');
     const statBp = document.getElementById('stat_bp');
     const statShield = document.getElementById('stat_shield');
-    if (invPa && statPa) statPa.value = invPa.value || '';
-    if (invBp && statBp) statBp.value = invBp.value || '';
-    if (invShield && statShield) statShield.value = invShield.value || '';
-
-    // stat_hp = (attr_con + attr_con_bonus) * 5
     const attrCon = document.getElementById('attr_con');
     const attrConBonus = document.getElementById('attr_con_bonus');
-    const statHp = document.getElementById('stat_hp');
-    if (statHp) {
-        const con = toNumber(attrCon && attrCon.value);
-        const conBonus = toNumber(attrConBonus && attrConBonus.value);
-        statHp.value = (con + conBonus) * 5;
-    }
-
-    // stat_res = ceil( (attr_con + attr_con_bonus) / 2 )
-    const statRes = document.getElementById('stat_res');
-    if (statRes) {
-        const con2 = toNumber(attrCon && attrCon.value);
-        const conBonus2 = toNumber(attrConBonus && attrConBonus.value);
-        statRes.value = Math.ceil((con2 + conBonus2) / 2);
-    }
-
-    // stat_def = ceil( max(attr_dist+bonus, attr_phy+bonus) / 2 )
     const attrDist = document.getElementById('attr_dist');
     const attrDistBonus = document.getElementById('attr_dist_bonus');
     const attrPhy = document.getElementById('attr_phy');
     const attrPhyBonus = document.getElementById('attr_phy_bonus');
+    const attrExpl = document.getElementById('attr_expl');
+    const attrExplBonus = document.getElementById('attr_expl_bonus');
+    const armorSelect = document.getElementById('armor_type');
+
+    const baseAttributes = {};
+    AppLogic.BASE_ATTRIBUTE_IDS.forEach((attributeId) => {
+        baseAttributes[attributeId] = document.getElementById(attributeId)?.value || 0;
+    });
+
+    const derivedStats = AppLogic.calculateDerivedStats({
+        invPa: invPa?.value,
+        invBp: invBp?.value,
+        invShield: invShield?.value,
+        attrCon: attrCon?.value,
+        attrConBonus: attrConBonus?.value,
+        attrDist: attrDist?.value,
+        attrDistBonus: attrDistBonus?.value,
+        attrPhy: attrPhy?.value,
+        attrPhyBonus: attrPhyBonus?.value,
+        attrExpl: attrExpl?.value,
+        attrExplBonus: attrExplBonus?.value,
+        armorType: armorSelect?.value,
+        baseAttributes
+    });
+
+    if (invPa && statPa) statPa.value = derivedStats.statPa;
+    if (invBp && statBp) statBp.value = derivedStats.statBp;
+    if (invShield && statShield) statShield.value = derivedStats.statShield;
+    const statHp = document.getElementById('stat_hp');
+    const statRes = document.getElementById('stat_res');
     const statDef = document.getElementById('stat_def');
-    if (statDef) {
-        const dist = toNumber(attrDist && attrDist.value);
-        const distBonus = toNumber(attrDistBonus && attrDistBonus.value);
-        const phy = toNumber(attrPhy && attrPhy.value);
-        const phyBonus = toNumber(attrPhyBonus && attrPhyBonus.value);
-        const higher = Math.max(dist + distBonus, phy + phyBonus);
-        statDef.value = Math.ceil(higher / 2);
-    }
-
-    // stat_init = higher of (attr_con + attr_con_bonus) and (attr_expl + attr_expl_bonus)
-    // minus armor malus: none=0, légère=0, intermédiaire=1, lourde=2
     const statInit = document.getElementById('stat_init');
-    if (statInit) {
-        const conTotal = toNumber(attrCon && attrCon.value) + toNumber(attrConBonus && attrConBonus.value);
-        const attrExpl = document.getElementById('attr_expl');
-        const attrExplBonus = document.getElementById('attr_expl_bonus');
-        const explTotal = toNumber(attrExpl && attrExpl.value) + toNumber(attrExplBonus && attrExplBonus.value);
-        const higherCE = Math.max(conTotal, explTotal);
-
-        let malus = 0;
-        const armorSelect = document.getElementById('armor_type');
-        if (armorSelect) {
-            const v = String(armorSelect.value || 'none');
-            if (v === '60') malus = 1; // Intermédiaire
-            else if (v === '80') malus = 2; // Lourde
-            else malus = 0; // 'none' or '40' (Légère) => 0
-        }
-
-        const initVal = Math.max(0, higherCE - malus);
-        statInit.value = initVal;
-    }
-
-    // --- Calcul dynamique du niveau ---
-    // Niveau = somme de tous les attributs (sans les bonus) - 17, min 0
     const statLvl = document.getElementById('stat_lvl');
-    if (statLvl) {
-        const baseAttrs = ['attr_con','attr_str','attr_phy','attr_dist','attr_know','attr_soc','attr_pilot','attr_expl'];
-        let sum = 0;
-        baseAttrs.forEach(aid => {
-            const ael = document.getElementById(aid);
-            if (ael) sum += toNumber(ael.value);
-        });
-        const lvl = Math.max(0, sum - 17);
-        statLvl.value = lvl;
-    }
+    if (statHp) statHp.value = derivedStats.statHp;
+    if (statRes) statRes.value = derivedStats.statRes;
+    if (statDef) statDef.value = derivedStats.statDef;
+    if (statInit) statInit.value = derivedStats.statInit;
+    if (statLvl) statLvl.value = derivedStats.statLvl;
 
     // Recompute weapon totals whenever derived stats (attributes) change
     if (typeof computeAllWeaponTotals === 'function') computeAllWeaponTotals();
@@ -480,78 +365,20 @@ function computeDerivedStats() {
 // Attach listeners and compute derived stats once DOM is ready
 // Initialization routine: attach listeners and set initial visibility/state.
 function initSheet() {
-    // Attach listeners to keep fields in sync
-    ['inv_pa','inv_bp','inv_shield','attr_con','attr_con_bonus','attr_dist','attr_dist_bonus','attr_phy','attr_phy_bonus','attr_expl','attr_expl_bonus','attr_str','attr_know','attr_soc','attr_pilot'].forEach(id => {
-        const el = document.getElementById(id);
-        if (el) el.addEventListener('input', computeDerivedStats);
-    });
+    AppDom.attachInputListeners(
+        ['inv_pa','inv_bp','inv_shield','attr_con','attr_con_bonus','attr_dist','attr_dist_bonus','attr_phy','attr_phy_bonus','attr_expl','attr_expl_bonus','attr_str','attr_know','attr_soc','attr_pilot'],
+        computeDerivedStats
+    );
 
-    // Wire any pre-existing weapon rows present in the HTML so their inputs trigger recalculation
     try {
-        document.querySelectorAll('.weapon-item').forEach(item => wireWeaponRow(item));
+        AppDom.wireExistingWeaponRows(wireWeaponRow);
     } catch (e) {}
 
-    // Add small +/- steppers to base attribute inputs for easier editing
     try {
-        const baseAttrs = ['attr_con','attr_str','attr_phy','attr_dist','attr_know','attr_soc','attr_pilot','attr_expl'];
-        baseAttrs.forEach(id => {
-            const el = document.getElementById(id);
-            if (!el) return;
-
-            // Avoid adding multiple steppers if already added
-            if (el.dataset.stepper === '1') return;
-
-            // Create wrapper
-            const wrapper = document.createElement('div');
-            wrapper.className = 'attr-stepper';
-
-            const dec = document.createElement('button');
-            dec.type = 'button';
-            dec.className = 'attr-dec';
-            dec.title = 'Décrémenter';
-            dec.textContent = '−';
-
-            const inc = document.createElement('button');
-            inc.type = 'button';
-            inc.className = 'attr-inc';
-            inc.title = 'Incrémenter';
-            inc.textContent = '+';
-
-            // Adjust input appearance for stepper
-            el.classList.add('attr-input');
-            // Place elements: dec, input, inc
-            el.parentNode && el.parentNode.replaceChild(wrapper, el);
-            wrapper.appendChild(dec);
-            wrapper.appendChild(el);
-            wrapper.appendChild(inc);
-
-            // mark as processed
-            el.dataset.stepper = '1';
-
-            // clamp function
-            const clampValue = (v) => {
-                const n = Number(v);
-                if (!Number.isFinite(n)) return 0;
-                return Math.min(Math.max(0, Math.round(n)), 7);
-            };
-
-            const stepFn = (delta, ev) => {
-                const cur = toNumber(el.value);
-                const step = (ev && ev.shiftKey) ? 5 : 1;
-                const next = clampValue(cur + delta * step);
-                el.value = next;
-                el.dispatchEvent(new Event('input', { bubbles: true }));
-                el.dispatchEvent(new Event('change', { bubbles: true }));
-            };
-
-            // clamp on manual input as well
-            el.addEventListener('input', function() {
-                const clamped = clampValue(this.value);
-                if (String(this.value) !== String(clamped)) this.value = clamped;
-            });
-
-            dec.addEventListener('click', function(e) { stepFn(-1, e); });
-            inc.addEventListener('click', function(e) { stepFn(1, e); });
+        AppDom.installAttributeSteppers({
+            attributeIds: AppLogic.BASE_ATTRIBUTE_IDS,
+            toNumber,
+            clampValue: AppLogic.clampBaseAttributeValue
         });
     } catch (e) {
         // silent
@@ -562,49 +389,27 @@ function initSheet() {
 
     // Armor type <select> sync: set inv_pa when armor type is chosen,
     // keep the select in sync when inv_pa is edited manually and apply exotic modifier.
-    const armorSelect = document.getElementById('armor_type');
-    const invPaEl = document.getElementById('inv_pa');
-    const exoticEl = document.getElementById('armor_exotic');
+    const armorSelect = AppDom.byId('armor_type');
+    const invPaEl = AppDom.byId('inv_pa');
+    const exoticEl = AppDom.byId('armor_exotic');
 
     if (armorSelect) {
         armorSelect.addEventListener('change', function() {
-            // store base and update display
             if (armorSelect.value === 'none') {
-                // clear PA when 'Aucune' is selected
                 invPaEl.dataset.base = '';
                 invPaEl.value = '';
-                // hide exotic checkbox when none is selected
-                const exoticContainer = document.getElementById('armor_exotic_container');
-                const inventoryRow = document.getElementById('inventory_row');
-                if (exoticContainer) exoticContainer.classList.add('hidden');
-                if (inventoryRow) inventoryRow.classList.add('inventory--checkbox-hidden');
+                AppDom.syncArmorVisibility(armorSelect.value);
                 computeDerivedStats();
             } else {
                 invPaEl.dataset.base = armorSelect.value || '';
                 updateInvPA();
-                // show exotic checkbox when a real armor is selected
-                const exoticContainer = document.getElementById('armor_exotic_container');
-                const inventoryRow = document.getElementById('inventory_row');
-                if (exoticContainer) exoticContainer.classList.remove('hidden');
-                if (inventoryRow) inventoryRow.classList.remove('inventory--checkbox-hidden');
+                AppDom.syncArmorVisibility(armorSelect.value);
             }
         });
-        // apply on load if a selection is present and set exotic visibility
         if (armorSelect.value) {
             invPaEl && (invPaEl.dataset.base = armorSelect.value);
         }
-        // initial show/hide of exotic checkbox
-        const exoticContainerInit = document.getElementById('armor_exotic_container');
-        if (exoticContainerInit) {
-            const inventoryRowInit = document.getElementById('inventory_row');
-            if (armorSelect.value === 'none' || !armorSelect.value) {
-                exoticContainerInit.classList.add('hidden');
-                if (inventoryRowInit) inventoryRowInit.classList.add('inventory--checkbox-hidden');
-            } else {
-                exoticContainerInit.classList.remove('hidden');
-                if (inventoryRowInit) inventoryRowInit.classList.remove('inventory--checkbox-hidden');
-            }
-        }
+        AppDom.syncArmorVisibility(armorSelect.value);
     }
 
     if (invPaEl) {
@@ -652,23 +457,25 @@ function initSheet() {
 
 // Compute the Attaque de Force talent line
 function computeForceAttack() {
-    const isForceUser = document.getElementById('force_yes')?.checked;
     const row = document.getElementById('talent_force_row');
     if (!row) return;
-    // Show row only when user is force-capable
-    if (isForceUser) row.classList.remove('hidden'); else row.classList.add('hidden');
 
-    if (!isForceUser) return;
+    const forceValues = AppLogic.computeForceAttackValues({
+        isForceUser: document.getElementById('force_yes')?.checked,
+        attrStr: document.getElementById('attr_str')?.value,
+        attrStrBonus: document.getElementById('attr_str_bonus')?.value,
+        bonus: document.getElementById('talent_force_bonus')?.value
+    });
 
-    const str = toNumber(document.getElementById('attr_str')?.value);
-    const strBonus = toNumber(document.getElementById('attr_str_bonus')?.value);
-    const base = (str * 2) + strBonus;
+    if (forceValues.visible) row.classList.remove('hidden'); else row.classList.add('hidden');
+    if (!forceValues.visible) return;
+
     const baseEl = document.getElementById('talent_force_base');
     const bonusEl = document.getElementById('talent_force_bonus');
     const totalEl = document.getElementById('talent_force_total');
-    if (baseEl) baseEl.value = base;
-    const bonus = toNumber(bonusEl?.value);
-    if (totalEl) totalEl.value = base + bonus;
+    if (baseEl) baseEl.value = forceValues.base;
+    if (bonusEl && !bonusEl.value) bonusEl.value = '0';
+    if (totalEl) totalEl.value = forceValues.total;
 }
 
 document.addEventListener('DOMContentLoaded', initSheet);
@@ -685,16 +492,8 @@ if (_originalUpdateInvPA) {
     window.updateInvPA = function() {
         _originalUpdateInvPA();
         try {
-            const armorSelect = document.getElementById('armor_type');
-            const exoticContainer = document.getElementById('armor_exotic_container');
-            const inventoryRow = document.getElementById('inventory_row');
-            if (armorSelect && armorSelect.value === 'none') {
-                if (exoticContainer) exoticContainer.classList.add('hidden');
-                if (inventoryRow) inventoryRow.classList.add('inventory--checkbox-hidden');
-            } else {
-                if (exoticContainer) exoticContainer.classList.remove('hidden');
-                if (inventoryRow) inventoryRow.classList.remove('inventory--checkbox-hidden');
-            }
+            const armorSelect = AppDom.byId('armor_type');
+            AppDom.syncArmorVisibility(armorSelect?.value);
         } catch (e) {
             // silent fallback
         }
@@ -703,55 +502,13 @@ if (_originalUpdateInvPA) {
 
 // --- EXPORT JSON ---
 function exportJSON() {
-    // Ensure all derived values (weapon totals, stats) are up-to-date before export
     try { if (typeof computeAllWeaponTotals === 'function') computeAllWeaponTotals(); } catch(e) {}
     try { if (typeof computeDerivedStats === 'function') computeDerivedStats(); } catch(e) {}
-    const data = {};
-    // Sélectionne tous les éléments qui ont un ID pertinent
-    document.querySelectorAll('input[id], textarea[id], select[id]').forEach(el => {
-        if (el.type === 'file') return;
-        
-        // Gestion spécifique des radios/checkbox
-        if (el.type === 'radio') {
-            if (el.checked) data[el.name] = el.value;
-        } else if (el.type === 'checkbox') {
-            data[el.id] = el.checked;
-        } else {
-            data[el.id] = el.value;
-        }
+    const data = AppPersistence.collectExportData({
+        currentImageData,
+        toNumber
     });
-
-    // Ajoute les armes dynamiques (structured)
-    const weapons = [];
-    document.querySelectorAll('.weapon-item').forEach(item => {
-        const name = item.querySelector('.weapon-name')?.value || '';
-        const base = toNumber(item.querySelector('.weapon-base')?.value);
-        const attr = item.querySelector('.weapon-attr')?.value || 'phy';
-        const bonus = toNumber(item.querySelector('.weapon-bonus')?.value);
-        const total = toNumber(item.querySelector('.weapon-total')?.value);
-        // Include even if name is empty to preserve structure
-        weapons.push({ name, base, attr, bonus, total });
-    });
-    if (weapons.length > 0) data['weapons'] = weapons;
-
-    // Ajoute l'image si présente
-    if (currentImageData) {
-        data['char_image_data'] = currentImageData;
-    }
-
-    // Création du fichier
-    const fileName = (data['char_name'] || 'personnage') + '_swtor.json';
-    const jsonStr = JSON.stringify(data, null, 2);
-    const blob = new Blob([jsonStr], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = fileName;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    AppPersistence.triggerJsonDownload(data);
 }
 
 // --- IMPORT JSON ---
@@ -759,109 +516,24 @@ function importJSON(inputElement) {
     const file = inputElement.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        try {
-            const data = JSON.parse(e.target.result);
+    AppPersistence.importJsonFile(file, {
+        resetImage,
+        renderWeapon,
+        imgPreview,
+        imgInput,
+        ensureMoveUI,
+        autoExpandTextarea,
+        updateInvPA,
+        computeDerivedStats
+    }).then((result) => {
+        currentImageData = result.currentImageData;
+        alert("Fiche chargée avec succès !");
+    }).catch((error) => {
+        console.error(error);
+        alert("Erreur lors de la lecture du fichier JSON.");
+    });
 
-            // 0. Clear all fields before importing
-            document.querySelectorAll('input, textarea, select').forEach(el => {
-                if (el.type === 'file') return;
-                
-                if (el.type === 'radio' || el.type === 'checkbox') {
-                    el.checked = false;
-                } else {
-                    el.value = '';
-                }
-            });
-            resetImage();
-
-            // 1. Restaurer les champs
-            const baseAttrs = ['attr_con','attr_str','attr_phy','attr_dist','attr_know','attr_soc','attr_pilot','attr_expl'];
-            for (const [key, value] of Object.entries(data)) {
-                if (key === 'char_image_data' || key === 'weapons') continue; 
-                
-                // Cas spécial Radio Buttons (Force User)
-                if (key === 'force') {
-                    const radio = document.querySelector(`input[name="force"][value="${value}"]`);
-                    if (radio) radio.checked = true;
-                    continue;
-                }
-
-                const el = document.getElementById(key);
-                if (el) {
-                    if (el.type === 'checkbox') {
-                        el.checked = value;
-                    } else {
-                        // If this is a base attribute, enforce max value 7 on import
-                        if (baseAttrs.includes(key)) {
-                            const n = Number(value);
-                            el.value = String(Number.isFinite(n) ? Math.min(Math.max(0, n), 7) : 0);
-                        } else {
-                            el.value = value;
-                        }
-                    }
-                }
-            }
-
-            // 1.5 Restaurer les armes dynamiques
-            if (data['weapons'] && Array.isArray(data['weapons'])) {
-                const container = document.getElementById('weapons-container');
-                // Clear existing weapons
-                container.innerHTML = '';
-                // Recreate weapons from structured data
-                data['weapons'].forEach(w => {
-                    if (typeof w === 'string') {
-                        // legacy string entry -> name only
-                        renderWeapon({ name: w, base: 0, attr: 'phy', bonus: 0 });
-                    } else {
-                        renderWeapon({ name: w.name || '', base: w.base || 0, attr: w.attr || 'phy', bonus: w.bonus || 0 });
-                    }
-                });
-            } else if (data['wep_main'] || data['wep_sec']) {
-                // Backward compatibility: convert old wep_main/wep_sec to new weapons array
-                const container = document.getElementById('weapons-container');
-                container.innerHTML = '';
-                if (data['wep_main']) renderWeapon({ name: data['wep_main'], base: 0, attr: 'phy', bonus: 0 });
-                if (data['wep_sec']) renderWeapon({ name: data['wep_sec'], base: 0, attr: 'phy', bonus: 0 });
-            }
-
-            // 2. Restaurer l'image
-            if (data['char_image_data']) {
-                currentImageData = data['char_image_data'];
-                imgPreview.style.backgroundImage = `url(${currentImageData})`;
-                imgPreview.classList.remove('hidden');
-                // Mark container as having an image so placeholder content disappears,
-                // but keep the label clickable to allow replacing the image.
-                const container = imgInput.closest('.char-img-placeholder');
-                if (container) container.classList.add('has-image');
-                    try { ensureMoveUI(); } catch (e) {}
-            } else {
-                resetImage();
-            }
-
-
-            // If armor type was present in imported data, ensure inv_pa follows it (handles 'none')
-            try {
-                if (typeof updateInvPA === 'function') updateInvPA();
-            } catch (e) {
-                // fallback
-                computeDerivedStats();
-            }
-
-            alert("Fiche chargée avec succès !");
-            // Expand all textareas to fit their content
-            document.querySelectorAll('textarea').forEach(textarea => {
-                autoExpandTextarea(textarea);
-            });
-        } catch (err) {
-            console.error(err);
-            alert("Erreur lors de la lecture du fichier JSON.");
-        }
-    };
-    reader.readAsText(file);
     inputElement.value = ''; // Permet de recharger le même fichier si besoin
-    // Recompute derived stats after importing values
     computeDerivedStats();
 }
 
@@ -871,49 +543,12 @@ function resetSheet() {
         return;
     }
 
-    // 1. Reset des inputs texte, nombre, select et textarea
-    document.querySelectorAll('input, textarea, select').forEach(el => {
-        if (el.type === 'file') return;
-        
-        if (el.type === 'radio' || el.type === 'checkbox') {
-            if (el.defaultChecked) {
-                el.checked = true;
-            } else {
-                el.checked = false;
-            }
-        } else {
-            // Remet la valeur par défaut (value="1" etc) ou vide
-            el.value = el.defaultValue; 
-        }
+    AppPersistence.resetSheetState({
+        resetImage,
+        renderWeapon,
+        updateInvPA,
+        computeDerivedStats
     });
-
-    // Ensure armor type explicitly resets to 'none' (Aucune) and update layout
-    try {
-        const armorSelect = document.getElementById('armor_type');
-        const exoticContainer = document.getElementById('armor_exotic_container');
-        const inventoryRow = document.getElementById('inventory_row');
-        if (armorSelect) {
-            armorSelect.value = 'none';
-        }
-        if (exoticContainer) exoticContainer.classList.add('hidden');
-        if (inventoryRow) inventoryRow.classList.add('inventory--checkbox-hidden');
-    } catch (e) {
-        // ignore if elements not present
-    }
-
-    // 2. Reset Image
-    resetImage();
-    // Ensure weapons area resets to a single empty weapon row
-    try {
-        const container = document.getElementById('weapons-container');
-        if (container) {
-            container.innerHTML = '';
-            renderWeapon();
-        }
-    } catch (e) {}
-    // Recompute derived stats after reset (prefer updateInvPA if available)
-    if (typeof updateInvPA === 'function') updateInvPA();
-    else computeDerivedStats();
 }
 
 function resetImage() {
