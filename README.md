@@ -14,11 +14,17 @@ Open `index.html` in your browser.
 
 ## End-to-end tests
 
-The repository includes a Playwright E2E suite in TypeScript for Chromium.
+The repository includes a Playwright E2E suite in TypeScript for desktop and mobile browsers:
+
+- Desktop: Chromium, Firefox, WebKit
+- Mobile: Chrome on Pixel 5, Safari on iPhone 13
 
 - Install dependencies: `npm install`
-- Install the Playwright browser: `npx playwright install chromium`
-- Run the suite: `npm run test:e2e`
+- Install the Playwright browsers: `npx playwright install chromium firefox webkit`
+- Run the full suite: `npm run test:e2e`
+- Run a single browser project: `npm run test:e2e:chromium`, `npm run test:e2e:firefox`, `npm run test:e2e:webkit`
+- Run the mobile projects: `npm run test:e2e:mobile`
+- Run a single mobile project: `npm run test:e2e:mobile:chrome`, `npm run test:e2e:mobile:safari`
 - Open the HTML report: `npm run test:e2e:report`
 
 Notes:

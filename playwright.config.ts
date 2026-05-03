@@ -30,6 +30,31 @@ export default defineConfig({
         ...devices['Desktop Chrome'],
         channel: 'chromium'
       }
+    },
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox']
+      }
+    },
+    {
+      name: 'webkit',
+      use: {
+        ...devices['Desktop Safari']
+      }
+    },
+    {
+      name: 'mobile-chrome',
+      use: {
+        ...devices['Pixel 5'],
+        channel: 'chromium'
+      }
+    },
+    {
+      name: 'mobile-safari',
+      use: {
+        ...devices['iPhone 13']
+      }
     }
   ],
   webServer: {
