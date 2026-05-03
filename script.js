@@ -939,185 +939,234 @@ function resetImage() {
 }
 
 // --- EXPORT VUE (SCREENSHOT) EN PDF ---
+function clearPdfExportPreviewClone() {
+    try {
+        const existing = document.getElementById('pdfExportSnapshotRoot');
+        if (existing) existing.remove();
+    } catch (e) {}
+}
+
+async function buildPdfExportClone(options = {}) {
+    const preserveClone = !!options.preserveClone;
+    const exportLayoutWidth = 1440;
+    const target = document.getElementById('sheetRoot') || document.body;
+
+    clearPdfExportPreviewClone();
+
+    const hidden = [];
+    document.querySelectorAll('.no-print, .scanline, .move-handle, .zoom-controls').forEach(el => {
+        hidden.push({ el, vis: el.style.visibility });
+        el.style.visibility = 'hidden';
+    });
+
+    await new Promise(r => setTimeout(r, 50));
+
+    const clone = target.cloneNode(true);
+    clone.id = 'pdfExportSnapshotRoot';
+    clone.setAttribute('data-testid', 'pdf-export-preview');
+
+    try {
+        const origSelects = target.querySelectorAll('select');
+        const cloneSelects = clone.querySelectorAll('select');
+        const len = Math.min(origSelects.length, cloneSelects.length);
+        for (let i = 0; i < len; i++) {
+            cloneSelects[i].value = origSelects[i].value;
+        }
+        clone.querySelectorAll('.char-img-placeholder.move-mode').forEach(el => el.classList.remove('move-mode'));
+    } catch (e) {}
+
+    clone.style.background = window.getComputedStyle(target).backgroundColor || '#001111';
+    clone.style.boxSizing = 'border-box';
+    clone.style.padding = window.getComputedStyle(target).padding || '12px';
+    clone.style.width = exportLayoutWidth + 'px';
+    clone.style.maxWidth = 'none';
+    clone.style.height = 'auto';
+
+    try {
+        const header = clone.querySelector('header');
+        if (header) {
+            header.style.display = 'flex';
+            header.style.flexDirection = 'row';
+            header.style.justifyContent = 'space-between';
+            header.style.alignItems = 'flex-end';
+        }
+
+        const mainGrid = clone.querySelector('div.grid.grid-cols-1.lg\\:grid-cols-3');
+        if (mainGrid) {
+            mainGrid.style.display = 'grid';
+            mainGrid.style.gridTemplateColumns = 'repeat(3, minmax(0, 1fr))';
+            mainGrid.style.alignItems = 'start';
+            const firstColumn = mainGrid.children[0];
+            if (firstColumn) firstColumn.style.gridColumn = 'span 2 / span 2';
+        }
+
+        clone.querySelectorAll('.md\\:grid-cols-2').forEach(el => {
+            el.style.display = 'grid';
+            el.style.gridTemplateColumns = 'repeat(2, minmax(0, 1fr))';
+        });
+
+        clone.querySelectorAll('.md\\:grid-cols-4').forEach(el => {
+            el.style.display = 'grid';
+            el.style.gridTemplateColumns = 'repeat(4, minmax(0, 1fr))';
+        });
+
+        clone.querySelectorAll('.weapons-headers, .weapon-item').forEach(el => {
+            el.style.display = 'grid';
+            el.style.gridTemplateColumns = 'repeat(5, minmax(0, 1fr))';
+            el.style.gap = '8px';
+        });
+
+        const inventoryRow = clone.querySelector('#inventory_row');
+        if (inventoryRow) {
+            inventoryRow.style.display = 'grid';
+            inventoryRow.style.gridTemplateColumns = inventoryRow.classList.contains('inventory--checkbox-hidden')
+                ? 'repeat(4, minmax(0, 1fr))'
+                : 'repeat(5, minmax(0, 1fr))';
+        }
+    } catch (e) {}
+
+    const replaceWithText = (el, text) => {
+        const span = document.createElement('div');
+        span.textContent = text;
+        span.style.background = '#00141a';
+        span.style.color = '#00f0ff';
+        span.style.padding = '6px 8px';
+        span.style.border = '1px solid rgba(0,240,255,0.12)';
+        span.style.fontWeight = '700';
+        span.style.fontFamily = window.getComputedStyle(el).fontFamily || 'Rajdhani, sans-serif';
+        const baseFont = parseFloat(window.getComputedStyle(el).fontSize) || 16;
+        span.style.fontSize = (baseFont >= 16 ? baseFont : 14) + 'px';
+        span.style.lineHeight = '1.1';
+        span.style.minHeight = (el.offsetHeight || 20) + 'px';
+        span.style.boxSizing = 'border-box';
+        span.style.display = 'inline-block';
+        span.style.verticalAlign = 'middle';
+
+        try {
+            if (el.classList && el.classList.contains('attr-bonus-input')) {
+                span.style.minWidth = '46px';
+                span.style.padding = '4px 6px';
+                span.style.textAlign = 'center';
+                span.style.fontSize = Math.max(12, baseFont - 2) + 'px';
+            } else if (el.classList && el.classList.contains('weapon-total')) {
+                span.style.minWidth = '56px';
+                span.style.padding = '4px 6px';
+                span.style.textAlign = 'right';
+            } else if (el.tagName && el.tagName.toLowerCase() === 'textarea') {
+                span.style.display = 'block';
+                span.style.whiteSpace = 'pre-wrap';
+                span.style.padding = '8px';
+            }
+        } catch (e) {}
+
+        return span;
+    };
+
+    clone.querySelectorAll('input, textarea, select').forEach(el => {
+        try {
+            let value = '';
+            if (el.tagName.toLowerCase() === 'select') {
+                value = el.options && el.selectedIndex >= 0 ? el.options[el.selectedIndex].text : el.value || '';
+            } else if (el.type === 'checkbox' || el.type === 'radio') {
+                value = el.checked ? '✔' : '';
+            } else {
+                value = el.value || '';
+            }
+
+            const replacement = replaceWithText(el, value);
+            el.parentNode && el.parentNode.replaceChild(replacement, el);
+        } catch (e) {}
+    });
+
+    clone.querySelectorAll('.attr-bonus-label').forEach(lbl => {
+        lbl.style.color = '#00f0ff';
+        lbl.style.fontWeight = '800';
+        lbl.style.fontSize = '12px';
+        lbl.style.letterSpacing = '0.06em';
+        lbl.style.display = 'block';
+        lbl.style.marginBottom = '4px';
+    });
+
+    clone.querySelectorAll('.section-box').forEach(sb => {
+        sb.style.clipPath = 'none';
+        sb.style.borderRadius = '0';
+    });
+
+    clone.style.padding = '12px 14px';
+    clone.style.margin = '0';
+    clone.style.boxSizing = 'border-box';
+    clone.style.overflow = 'hidden';
+
+    try {
+        clone.querySelectorAll('p').forEach(p => {
+            const t = (p.textContent || '').trim();
+            if (t.startsWith('©') || t.toLowerCase().includes('©')) p.style.display = 'none';
+        });
+    } catch (e) {}
+
+    clone.style.position = 'fixed';
+    clone.style.left = preserveClone ? '0' : '-10000px';
+    clone.style.top = '0';
+    clone.style.zIndex = '99999';
+    clone.style.pointerEvents = 'none';
+    document.body.appendChild(clone);
+
+    hidden.forEach(item => { item.el.style.visibility = item.vis || ''; });
+
+    await new Promise(r => setTimeout(r, 40));
+
+    const opts = {
+        scale: Math.min(3, (window.devicePixelRatio || 1) * 1.3),
+        useCORS: true,
+        logging: false,
+        backgroundColor: null,
+        width: Math.ceil(clone.scrollWidth),
+        height: Math.ceil(clone.scrollHeight),
+        scrollX: 0,
+        scrollY: 0,
+        windowWidth: exportLayoutWidth,
+        windowHeight: Math.max(1600, Math.ceil(clone.scrollHeight))
+    };
+
+    try {
+        window.__lastPdfExportMeta = {
+            forcedDesktopLayout: true,
+            sourceViewportWidth: window.innerWidth,
+            renderWidth: Math.ceil(clone.scrollWidth),
+            renderHeight: Math.ceil(clone.scrollHeight),
+            renderWindowWidth: opts.windowWidth,
+            renderWindowHeight: opts.windowHeight,
+            previewCloneVisible: preserveClone
+        };
+    } catch (e) {}
+
+    return {
+        target,
+        clone,
+        opts,
+        cleanup: function() {
+            if (!preserveClone && clone && clone.parentNode) clone.remove();
+        }
+    };
+}
+
+async function preparePdfExportPreviewForTests() {
+    const result = await buildPdfExportClone({ preserveClone: true });
+    return window.__lastPdfExportMeta;
+}
+
 async function exportScreenshotPDF() {
     const btn = document.getElementById('screenshotPdfBtn');
     try {
         if (btn) { btn.disabled = true; btn.textContent = 'Génération...'; }
-        // Target the main sheet container so we don't capture page margins/borders
-        const target = document.getElementById('sheetRoot') || document.body;
 
-        // Hide elements that should not appear in the export (controls, overlays)
-        const hidden = [];
-        // also hide interactive image controls (move/zoom) so PDF is clean
-        document.querySelectorAll('.no-print, .scanline, .move-handle, .zoom-controls').forEach(el => {
-            hidden.push({ el, vis: el.style.visibility });
-            el.style.visibility = 'hidden';
-        });
-
-        // Wait a tick so styles apply
-        await new Promise(r => setTimeout(r, 50));
-
-        // Instead of capturing the live DOM (which can render inputs poorly),
-        // create a visual clone where interactive form controls are replaced
-        // with static, high-contrast elements. Render that clone with html2canvas.
-        const clone = target.cloneNode(true);
-
-        // Ensure cloned <select> elements reflect the current selection.
-        // Some browsers reset selectedIndex/value to the first option on clone.
-        try {
-            const origSelects = target.querySelectorAll('select');
-            const cloneSelects = clone.querySelectorAll('select');
-            const len = Math.min(origSelects.length, cloneSelects.length);
-            for (let i = 0; i < len; i++) {
-                cloneSelects[i].value = origSelects[i].value;
-            }
-            // remove move-mode state from clone so outlines/controls don't show
-            clone.querySelectorAll('.char-img-placeholder.move-mode').forEach(el => el.classList.remove('move-mode'));
-        } catch (e) {}
-
-        // Normalize styles on the clone to improve readability
-        clone.style.background = window.getComputedStyle(target).backgroundColor || '#001111';
-        clone.style.boxSizing = 'border-box';
-        clone.style.padding = window.getComputedStyle(target).padding || '12px';
-        clone.style.width = target.scrollWidth + 'px';
-        clone.style.height = target.scrollHeight + 'px';
-
-        // Replace form controls in clone with static elements showing their values
-        const replaceWithText = (el, text) => {
-            const span = document.createElement('div');
-            span.textContent = text;
-            span.style.background = '#00141a';
-            span.style.color = '#00f0ff';
-            span.style.padding = '6px 8px';
-            span.style.border = '1px solid rgba(0,240,255,0.12)';
-            span.style.fontWeight = '700';
-            span.style.fontFamily = window.getComputedStyle(el).fontFamily || 'Rajdhani, sans-serif';
-            // make the text slightly larger for small UI elements
-            const baseFont = parseFloat(window.getComputedStyle(el).fontSize) || 16;
-            span.style.fontSize = (baseFont >= 16 ? baseFont : 14) + 'px';
-            span.style.lineHeight = '1.1';
-            span.style.minHeight = (el.offsetHeight || 20) + 'px';
-            span.style.boxSizing = 'border-box';
-            span.style.display = 'inline-block';
-            span.style.verticalAlign = 'middle';
-
-            // Specific tweaks for small controls like bonus inputs or totals
-            try {
-                if (el.classList && el.classList.contains('attr-bonus-input')) {
-                    span.style.minWidth = '46px';
-                    span.style.padding = '4px 6px';
-                    span.style.textAlign = 'center';
-                    span.style.fontSize = Math.max(12, baseFont - 2) + 'px';
-                } else if (el.classList && el.classList.contains('weapon-total')) {
-                    span.style.minWidth = '56px';
-                    span.style.padding = '4px 6px';
-                    span.style.textAlign = 'right';
-                } else if (el.tagName && el.tagName.toLowerCase() === 'textarea') {
-                    span.style.display = 'block';
-                    span.style.whiteSpace = 'pre-wrap';
-                    span.style.padding = '8px';
-                }
-            } catch (e) {}
-
-            return span;
-        };
-
-        // Inputs
-        clone.querySelectorAll('input, textarea, select').forEach(el => {
-            try {
-                let value = '';
-                if (el.tagName.toLowerCase() === 'select') {
-                    value = el.options && el.selectedIndex >= 0 ? el.options[el.selectedIndex].text : el.value || '';
-                } else if (el.type === 'checkbox' || el.type === 'radio') {
-                    value = el.checked ? '✔' : '';
-                } else {
-                    value = el.value || '';
-                }
-
-                // Preserve some surrounding layout by wrapping replacements in a container
-                const replacement = replaceWithText(el, value);
-                el.parentNode && el.parentNode.replaceChild(replacement, el);
-            } catch (e) {}
-        });
-
-        // Improve visibility of small 'BONUS' labels and similar tiny UI text
-        clone.querySelectorAll('.attr-bonus-label').forEach(lbl => {
-            lbl.style.color = '#00f0ff';
-            lbl.style.fontWeight = '800';
-            lbl.style.fontSize = '12px';
-            lbl.style.letterSpacing = '0.06em';
-            lbl.style.display = 'block';
-            lbl.style.marginBottom = '4px';
-        });
-
-        // Remove decorative pseudo elements by clearing their attributes
-        clone.querySelectorAll('.section-box').forEach(sb => {
-            sb.style.clipPath = 'none';
-            sb.style.borderRadius = '0';
-        });
-
-        // Normalize clone layout, hide low-importance/footer elements and place it off-screen
-        // Add a small internal margin so the rendered image is not flush to the edges
-        clone.style.padding = '12px 14px';
-        clone.style.margin = '0';
-        clone.style.boxSizing = 'border-box';
-        clone.style.overflow = 'hidden';
-
-        // Hide potential footers or copyright lines that add extra height
-        try {
-            clone.querySelectorAll('p').forEach(p => {
-                const t = (p.textContent || '').trim();
-                if (t.startsWith('©') || t.toLowerCase().includes('©')) p.style.display = 'none';
-            });
-        } catch (e) {}
-
-        clone.style.position = 'fixed';
-        clone.style.left = '-10000px';
-        clone.style.top = '0';
-        clone.style.zIndex = '99999';
-        document.body.appendChild(clone);
-
-        // Wait for layout
-        await new Promise(r => setTimeout(r, 40));
-
-        // If requested: stop capture after the inventory section by limiting clone height
-        try {
-            const marker = clone.querySelector('#weapons-container') || clone.querySelector('#inventory_row');
-            if (marker) {
-                // Find the nearest section element that contains the marker
-                const section = marker.closest('section') || marker;
-                // Compute bottom relative to the clone's content box
-                const secRect = section.getBoundingClientRect();
-                const cloneRect = clone.getBoundingClientRect();
-                const bottomPx = Math.max(0, secRect.bottom - cloneRect.top);
-                const padPx = 12; // small padding after inventory (matches clone padding)
-                const limitHeightPx = Math.ceil(bottomPx + padPx);
-                // Apply a hard cap to the clone so html2canvas only renders up to inventory
-                clone.style.height = limitHeightPx + 'px';
-            }
-        } catch (e) {
-            // ignore errors and render full clone
-        }
-
-        const opts = {
-            // Slightly reduced scale to avoid tiny rounding overflow that creates an extra PDF page
-            scale: Math.min(3, (window.devicePixelRatio || 1) * 1.3),
-            useCORS: true,
-            logging: false,
-            backgroundColor: null,
-            width: Math.ceil(clone.scrollWidth),
-            height: Math.ceil(clone.scrollHeight),
-            scrollX: 0,
-            scrollY: 0,
-            windowWidth: Math.ceil(clone.scrollWidth),
-            windowHeight: Math.ceil(clone.scrollHeight)
-        };
+        const { target, clone, opts, cleanup } = await buildPdfExportClone();
 
         let canvas = await html2canvas(clone, opts);
         // capture background color used for the clone so we can detect empty bottom rows
         const cloneBg = clone.style.background || window.getComputedStyle(target).backgroundColor || '';
         // remove the clone now that capture is done
-        clone.remove();
+        cleanup();
 
         // Crop canvas to remove trailing empty/background-only rows at the bottom
         try {
@@ -1209,9 +1258,6 @@ async function exportScreenshotPDF() {
 
         const name = (document.getElementById('char_name')?.value || 'fiche') + '.pdf';
         pdf.save(name);
-
-        // restore previously hidden elements
-        hidden.forEach(item => { item.el.style.visibility = item.vis || ''; });
     } catch (err) {
         console.error(err);
         alert('Erreur lors de la génération du PDF.');

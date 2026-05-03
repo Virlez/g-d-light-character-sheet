@@ -1,5 +1,7 @@
 node_modules/
 playwright-report/
 playwright-report.json
+playwright-*.json
+playwright-*.txt
 test-results/
 *.tsbuildinfo
