@@ -3,9 +3,10 @@
 A lightweight, printable character sheet styled with a Star Wars/tech-holo aesthetic. This repository contains a single-page HTML character sheet that uses Tailwind utility classes plus custom CSS and JavaScript for features like image preview, JSON import/export and print-optimized styles.
 
 **Files of interest:**
-- `index.html`: Main page. References external CSS/JS and Tailwind CDN.
-- `styles.css`: All custom styles (extracted from the original inline `<style>` block).
-- `script.js`: All interactive behavior (image preview, export/import JSON, reset logic).
+- `index.html`: Main page and ordered script loader.
+- `styles.css`: All custom styles.
+- `script.js`: Thin compatibility layer that exposes the app methods globally.
+- `js/`: Modular browser scripts grouped by responsibility.
 - `LICENSE`, `README.md`: Repository metadata.
 
 **Quick start (local preview)**
@@ -31,6 +32,22 @@ Notes:
 - Tests use a local static server started from `playwright.config.ts`.
 - The suite keeps the current CDN-based app setup (Tailwind, Google Fonts, `html2canvas`, `jspdf`).
 - On PowerShell with script policy restrictions, prefer `npm.cmd` and `npx.cmd`.
+
+## Front-end architecture
+
+The original monolithic `script.js` has been refactored into focused browser modules loaded in order from `index.html`.
+
+- `js/app-logic.js`: pure calculations and data normalization
+- `js/app-dom.js`: DOM helpers, selector utilities, steppers, and visibility sync
+- `js/app-persistence.js`: JSON export/import/reset flows
+- `js/app-weapons.js`: weapon row rendering, wiring, deletion, and totals
+- `js/app-image.js`: image upload, drag-and-drop, move/zoom controls, and reset
+- `js/app-pdf.js`: PDF preview clone generation and screenshot-to-PDF export
+- `js/app-stats.js`: derived stats, Force row computation, armor sync, and init lifecycle
+- `js/app-shell.js`: final orchestration layer that composes the modules into one app object
+- `script.js`: compatibility bridge that publishes app methods on `window` for inline HTML handlers and Playwright hooks
+
+This split keeps the current no-build browser setup while making the behavior easier to test and maintain.
 
 ## How to use — Sauvegarder et charger / Save & Load (FR / EN)
 
