@@ -37,7 +37,7 @@
 
     <div class="scanline fixed top-0 left-0 w-full h-screen pointer-events-none"></div>
 
-    <div id="sheetRoot" class="w-full max-w-5xl relative z-10">
+    <div id="sheetRoot" data-testid="sheet-root" class="w-full max-w-5xl relative z-10">
         
         <header class="flex flex-col md:flex-row justify-between items-end mb-6 border-b-2 border-[#004e53] pb-4">
             <div class="mb-2 md:mb-0">
@@ -216,10 +216,10 @@
 
             <div class="space-y-4">
                 
-                <div class="section-box p-1 h-48 char-img-placeholder clip-corner relative group">
+                <div data-testid="photo-card" class="section-box p-1 h-48 char-img-placeholder clip-corner relative group">
                     <!-- Hidden file input; label will trigger it for better cross-browser reliability -->
-                    <input type="file" id="imgUpload" accept="image/*" class="hidden">
-                    <div id="imgPreview" class="w-full h-full bg-cover bg-center absolute inset-0 z-10 hidden" aria-hidden="true"></div>
+                    <input type="file" id="imgUpload" data-testid="photo-upload-input" accept="image/*" class="hidden">
+                    <div id="imgPreview" data-testid="photo-preview" class="w-full h-full bg-cover bg-center absolute inset-0 z-10 hidden" aria-hidden="true"></div>
 
                     <!-- Clickable label covers the whole area and opens file dialog -->
                     <label for="imgUpload" class="absolute inset-0 z-20 flex items-center justify-center cursor-pointer">
@@ -294,7 +294,7 @@
                 </h2>
                 <textarea id="talents" class="w-full h-screen bg-transparent border border-[#004e53] p-2 text-base leading-relaxed text-[#c4f0ff] focus:bg-[#00141a]" placeholder="Listez vos talents ici..."></textarea>
 
-                <div id="talent_force_row" class="mb-3 p-2 hidden">
+                <div id="talent_force_row" data-testid="force-talent-row" class="mb-3 p-2 hidden">
                     <label class="block text-sm text-gray-400 mb-1">Dégâts / Soins de Force</label>
                     <div class="grid grid-cols-3 gap-2 text-xs text-gray-400 mb-1">
                         <div class="text-center">Base</div>
@@ -312,7 +312,7 @@
             <section class="section-box p-3 clip-corner-inv">
                 <h2 class="text-lg text-[#00f0ff] mb-2 border-b border-[#004e53]">Inventaire</h2>
                 
-                    <div id="inventory_row" class="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2 items-end">
+                    <div id="inventory_row" data-testid="inventory-row" class="grid grid-cols-1 md:grid-cols-5 gap-2 mb-2 items-end">
                         <div>
                             <label class="text-sm text-gray-400 block">Type d'armure</label>
                             <select id="armor_type" class="w-full p-1 text-base bg-transparent border border-[#004e53] text-[#00f0ff]">
@@ -343,7 +343,7 @@
                 <div class="mb-2">
                     <div class="flex justify-between items-center mb-1">
                         <label class="text-[12px] text-gray-400 block">Armes</label>
-                        <button onclick="addWeapon()" type="button" class="text-sm bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">+</button>
+                        <button data-testid="add-weapon-button" onclick="addWeapon()" type="button" class="text-sm bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">+</button>
                     </div>
                     <div class="weapons-headers grid grid-cols-5 gap-2 mb-1 text-[12px] text-gray-400">
                         <div class="text-left">Nom</div>
@@ -352,19 +352,19 @@
                         <div class="text-left">Bonus</div>
                         <div class="text-left">Total</div>
                     </div>
-                    <div id="weapons-container" class="space-y-1">
-                        <div class="weapon-item grid grid-cols-5 gap-2 items-center">
-                            <input type="text" class="weapon-name w-full p-1 text-sm" placeholder="Nom arme">
-                            <input type="number" class="weapon-base w-full p-1 text-sm text-right" value="0" min="0">
-                            <select class="weapon-attr w-full p-1 text-sm">
+                    <div id="weapons-container" data-testid="weapons-container" class="space-y-1">
+                        <div data-testid="weapon-row" class="weapon-item grid grid-cols-5 gap-2 items-center">
+                            <input type="text" data-testid="weapon-name" class="weapon-name w-full p-1 text-sm" placeholder="Nom arme">
+                            <input type="number" data-testid="weapon-base" class="weapon-base w-full p-1 text-sm text-right" value="0" min="0">
+                            <select data-testid="weapon-attr" class="weapon-attr w-full p-1 text-sm">
                                 <option value="none">Aucun</option>
                                 <option value="phy">Physique</option>
                                 <option value="dist">Distance</option>
                             </select>
-                            <input type="number" class="weapon-bonus w-full p-1 text-sm text-right" value="0" step="1" min="0">
+                            <input type="number" data-testid="weapon-bonus" class="weapon-bonus w-full p-1 text-sm text-right" value="0" step="1" min="0">
                             <div class="flex items-center gap-2">
-                                <input type="number" class="weapon-total w-full p-1 text-sm bg-transparent text-right" value="0" readonly>
-                                <button onclick="deleteWeapon(this)" type="button" class="text-sm bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">-</button>
+                                <input type="number" data-testid="weapon-total" class="weapon-total w-full p-1 text-sm bg-transparent text-right" value="0" readonly>
+                                <button data-testid="delete-weapon-button" onclick="deleteWeapon(this)" type="button" class="text-sm bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">-</button>
                             </div>
                         </div>
                     </div>
@@ -378,20 +378,20 @@
         </div>
 
         <div class="mt-6 flex flex-wrap justify-center gap-4 border-t border-[#004e53] pt-4 no-print">
-            <button onclick="exportJSON()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm">
+            <button data-testid="export-json-button" onclick="exportJSON()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm">
                 Sauvegarder (JSON)
             </button>
             
-            <button onclick="document.getElementById('importFile').click()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm">
+            <button data-testid="import-json-button" onclick="document.getElementById('importFile').click()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm">
                 Charger (JSON)
             </button>
-            <input type="file" id="importFile" accept=".json" class="hidden" onchange="importJSON(this)">
+            <input type="file" id="importFile" data-testid="import-json-input" accept=".json" class="hidden" onchange="importJSON(this)">
 
-            <button onclick="resetSheet()" class="bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm border border-transparent hover:border-red-500">
+            <button data-testid="reset-sheet-button" onclick="resetSheet()" class="bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm border border-transparent hover:border-red-500">
                 Réinitialiser
             </button>
 
-            <button id="screenshotPdfBtn" onclick="exportScreenshotPDF()" class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-6 py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-base">
+            <button id="screenshotPdfBtn" data-testid="export-pdf-button" onclick="exportScreenshotPDF()" class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-6 py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-base">
                 Exporter en PDF
             </button>
         </div>

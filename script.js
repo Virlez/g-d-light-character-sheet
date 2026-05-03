@@ -33,20 +33,21 @@ function deleteWeapon(button) {
 function renderWeapon(data = {}) {
     const container = document.getElementById('weapons-container');
     const weaponItem = document.createElement('div');
+    weaponItem.setAttribute('data-testid', 'weapon-row');
     weaponItem.className = 'weapon-item grid grid-cols-5 gap-2 items-center';
     // Match the static HTML layout: five grid cells, last cell contains total + delete button
     weaponItem.innerHTML = `
-        <input type="text" class="weapon-name w-full p-1 text-sm" placeholder="Nom arme">
-        <input type="number" class="weapon-base w-full p-1 text-sm text-right" value="0" min="0">
-        <select class="weapon-attr w-full p-1 text-sm">
+        <input type="text" data-testid="weapon-name" class="weapon-name w-full p-1 text-sm" placeholder="Nom arme">
+        <input type="number" data-testid="weapon-base" class="weapon-base w-full p-1 text-sm text-right" value="0" min="0">
+        <select data-testid="weapon-attr" class="weapon-attr w-full p-1 text-sm">
                 <option value="none">Aucun</option>
                 <option value="phy">Physique</option>
                 <option value="dist">Distance</option>
             </select>
-        <input type="number" class="weapon-bonus w-full p-1 text-sm text-right" value="0" step="1" min="0">
+        <input type="number" data-testid="weapon-bonus" class="weapon-bonus w-full p-1 text-sm text-right" value="0" step="1" min="0">
         <div class="flex items-center gap-2">
-            <input type="number" class="weapon-total w-full p-1 text-sm bg-transparent text-right" value="0" readonly>
-            <button type="button" class="weapon-delete text-sm bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">-</button>
+            <input type="number" data-testid="weapon-total" class="weapon-total w-full p-1 text-sm bg-transparent text-right" value="0" readonly>
+            <button type="button" data-testid="delete-weapon-button" class="weapon-delete text-sm bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-2 py-1 rounded clip-corner transition-colors">-</button>
         </div>
     `;
     container.appendChild(weaponItem);

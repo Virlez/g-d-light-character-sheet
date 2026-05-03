@@ -1,0 +1,19 @@
+{
+  "name": "g-d-light-character-sheet",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Playwright E2E suite for the SWTOR character sheet",
+  "scripts": {
+    "test:e2e": "playwright test",
+    "test:e2e:headed": "playwright test --headed",
+    "test:e2e:ui": "playwright test --ui",
+    "test:e2e:debug": "playwright test --debug",
+    "test:e2e:report": "playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.54.2",
+    "@types/node": "^22.15.21",
+    "http-server": "^14.1.1",
+    "typescript": "^5.8.3"
+  }
+}

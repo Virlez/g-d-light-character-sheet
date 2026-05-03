@@ -12,6 +12,20 @@ A lightweight, printable character sheet styled with a Star Wars/tech-holo aesth
 
 Open `index.html` in your browser.
 
+## End-to-end tests
+
+The repository includes a Playwright E2E suite in TypeScript for Chromium.
+
+- Install dependencies: `npm install`
+- Install the Playwright browser: `npx playwright install chromium`
+- Run the suite: `npm run test:e2e`
+- Open the HTML report: `npm run test:e2e:report`
+
+Notes:
+- Tests use a local static server started from `playwright.config.ts`.
+- The suite keeps the current CDN-based app setup (Tailwind, Google Fonts, `html2canvas`, `jspdf`).
+- On PowerShell with script policy restrictions, prefer `npm.cmd` and `npx.cmd`.
+
 ## How to use — Sauvegarder et charger / Save & Load (FR / EN)
 
 ### Français
