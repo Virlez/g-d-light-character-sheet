@@ -3,6 +3,7 @@ const AppLogic = window.CharacterSheetLogic;
 const AppDom = window.CharacterSheetDom;
 const AppPersistence = window.CharacterSheetPersistence;
 const AppWeapons = window.CharacterSheetWeapons;
+const AppImage = window.CharacterSheetImage;
 
 function autoExpandTextarea(textarea) {
     textarea.style.height = 'auto';
@@ -51,234 +52,20 @@ const imgPreview = document.getElementById('imgPreview');
 let currentImageData = null; // Stocke l'image en Base64
 
 if (imgInput) {
-    // Unified file handler used by both input change and drop events
-    const handleImageFile = (file) => {
-        if (!file) return;
-        const reader = new FileReader();
-        reader.onload = function(e) {
-            currentImageData = e.target.result;
-            if (imgPreview) imgPreview.style.backgroundImage = `url(${currentImageData})`;
-            if (imgPreview) imgPreview.classList.remove('hidden');
-            // Mark container as having an image so placeholder content disappears,
-            // but keep the label clickable to allow replacing the image.
-            const container = imgInput.closest('.char-img-placeholder');
-            if (container) container.classList.add('has-image');
-            if (imgPreview) {
-                imgPreview.style.backgroundSize = 'cover';
-                imgPreview.style.backgroundPosition = '50% 50%';
-            }
-            try { ensureMoveUI(); } catch (e) {}
-        };
-        reader.readAsDataURL(file);
-    };
-
-    imgInput.addEventListener('change', function(event) {
-        const file = event.target.files[0];
-        handleImageFile(file);
-    });
-
-    // Add drag & drop support on the placeholder container
-    try {
-        const placeholder = imgInput.closest('.char-img-placeholder');
-        if (placeholder) {
-            const onDragOver = (ev) => { ev.preventDefault(); ev.dataTransfer.dropEffect = 'copy'; placeholder.classList.add('dragover'); };
-            const onDragEnter = (ev) => { ev.preventDefault(); placeholder.classList.add('dragover'); };
-            const onDragLeave = (ev) => { ev.preventDefault(); placeholder.classList.remove('dragover'); };
-            const onDrop = (ev) => {
-                ev.preventDefault();
-                placeholder.classList.remove('dragover');
-                const dt = ev.dataTransfer;
-                if (!dt) return;
-                const file = dt.files && dt.files[0];
-                if (file && file.type && file.type.startsWith('image/')) {
-                    handleImageFile(file);
-                    // ensure move UI is available after drop (FileReader is async)
-                    setTimeout(() => {
-                        try { ensureMoveUI(); } catch (e) {}
-                        try {
-                            // try to enter move-mode automatically so the user can drag immediately
-                            const pl = imgInput.closest('.char-img-placeholder');
-                            if (pl) {
-                                pl.classList.add('move-mode');
-                                const lbl = pl.querySelector('label[for="imgUpload"]');
-                                if (lbl) lbl.style.pointerEvents = 'none';
-                                const btn = pl.querySelector('.move-handle');
-                                if (btn) btn.textContent = 'Terminer';
-                            }
-                        } catch (e) {}
-                    }, 80);
-                } else if (dt.items && dt.items.length) {
-                    // fallback: try to extract file from items (some browsers)
-                    for (let i = 0; i < dt.items.length; i++) {
-                        const it = dt.items[i];
-                        if (it.kind === 'file') {
-                            const f = it.getAsFile();
-                            if (f && f.type && f.type.startsWith('image/')) { handleImageFile(f); break; }
-                        }
-                    }
-                }
-            };
-
-            placeholder.addEventListener('dragover', onDragOver);
-            placeholder.addEventListener('dragenter', onDragEnter);
-            placeholder.addEventListener('dragleave', onDragLeave);
-            placeholder.addEventListener('drop', onDrop);
+    AppImage.bindImageInput({
+        imgInput,
+        imgPreview,
+        ensureMoveUI,
+        onImageChange: (imageData) => {
+            currentImageData = imageData;
         }
-    } catch (e) {}
+    });
 }
 
 // --- DERIVED STATS AUTOMATIONS ---
 // --- Image move / pan controls ---
 function ensureMoveUI() {
-    try {
-        const placeholder = imgInput.closest('.char-img-placeholder');
-        if (!placeholder) return;
-
-        // create move button if not present
-        let btn = placeholder.querySelector('.move-handle');
-        if (!btn) {
-            btn = document.createElement('button');
-            btn.type = 'button';
-            btn.className = 'move-handle';
-            btn.textContent = 'Déplacer';
-            // ensure visible even if CSS specificity issues occur
-            btn.style.display = 'inline-block';
-            btn.style.zIndex = '99999';
-            btn.style.pointerEvents = 'auto';
-            placeholder.appendChild(btn);
-        }
-
-        // state for panning
-        let isPanning = false;
-        let startX = 0, startY = 0;
-        let pos = { x: 50, y: 50 };
-
-        const updateBgPos = () => {
-            if (imgPreview) imgPreview.style.backgroundPosition = `${pos.x}% ${pos.y}%`;
-        };
-
-        const clamp = v => Math.max(0, Math.min(100, v));
-
-        // toggle move mode (attach handlers only once)
-        if (!btn._moveListenerAttached) {
-            const toggleMove = function(e) {
-                e && e.stopPropagation && e.stopPropagation();
-                const moving = placeholder.classList.toggle('move-mode');
-                btn.textContent = moving ? 'Terminer' : 'Déplacer';
-                // when entering move-mode, allow pointer events to reach the preview
-                const label = placeholder.querySelector('label[for="imgUpload"]');
-                if (label) label.style.pointerEvents = moving ? 'none' : '';
-            };
-            // Use pointerdown only to support mouse and touch without causing
-            // a duplicate 'click' event that would toggle twice.
-            btn.addEventListener('pointerdown', function(e){ e.preventDefault(); toggleMove(e); });
-            btn._moveListenerAttached = true;
-        }
-
-        // --- Zoom controls and state ---
-        // maintain per-placeholder image state: scale (%) and position {x,y}
-        placeholder._imgState = placeholder._imgState || { scale: 100, pos: { x: 50, y: 50 } };
-        const state = placeholder._imgState;
-
-        // create zoom controls
-        let zoomWrap = placeholder.querySelector('.zoom-controls');
-        if (!zoomWrap) {
-            zoomWrap = document.createElement('div');
-            zoomWrap.className = 'zoom-controls';
-            const zin = document.createElement('button'); zin.type = 'button'; zin.className = 'zoom-in'; zin.textContent = '+';
-            const zout = document.createElement('button'); zout.type = 'button'; zout.className = 'zoom-out'; zout.textContent = '−';
-            const slider = document.createElement('input');
-            slider.type = 'range'; slider.className = 'zoom-slider';
-            slider.min = 20; slider.max = 400; slider.step = 1;
-            // order: minus, slider, plus (user requested inverted positions)
-            zoomWrap.appendChild(zout);
-            zoomWrap.appendChild(slider);
-            zoomWrap.appendChild(zin);
-            // place zoom controls to the left of move handle visually
-            placeholder.appendChild(zoomWrap);
-        }
-
-        const updateBgSize = () => {
-            if (!imgPreview) return;
-            imgPreview.style.backgroundSize = (state.scale ? String(state.scale) + '%' : 'cover');
-            imgPreview.style.backgroundPosition = `${state.pos.x}% ${state.pos.y}%`;
-            // sync slider if present
-            try {
-                const s = placeholder.querySelector('.zoom-slider');
-                if (s) s.value = String(state.scale);
-            } catch (e) {}
-        };
-
-        const clampScale = s => Math.max(20, Math.min(400, s));
-        const setScale = (s) => { state.scale = clampScale(Math.round(s)); updateBgSize(); };
-
-        // Attach zoom handlers once
-        if (!placeholder._zoomHandlersAttached) {
-            const zinBtn = placeholder.querySelector('.zoom-in');
-            const zoutBtn = placeholder.querySelector('.zoom-out');
-            const sliderEl = placeholder.querySelector('.zoom-slider');
-            if (zinBtn) zinBtn.addEventListener('click', () => setScale(state.scale + 10));
-            if (zoutBtn) zoutBtn.addEventListener('click', () => setScale(state.scale - 10));
-            if (sliderEl) sliderEl.addEventListener('input', (ev) => setScale(Number(ev.target.value)));
-
-            // wheel to zoom when in move-mode
-            const onWheel = (ev) => {
-                if (!placeholder.classList.contains('move-mode')) return;
-                ev.preventDefault();
-                const delta = ev.deltaY;
-                if (delta < 0) setScale(state.scale + 8); else setScale(state.scale - 8);
-            };
-            placeholder.addEventListener('wheel', onWheel, { passive: false });
-            placeholder._zoomHandlersAttached = true;
-        }
-
-        // apply initial state to preview
-        updateBgSize();
-
-        // pointer handlers on the placeholder so users can drag anywhere
-        const onPointerDown = (ev) => {
-            if (!placeholder.classList.contains('move-mode')) return;
-            if (!imgPreview) return;
-            isPanning = true;
-            startX = ev.clientX;
-            startY = ev.clientY;
-            // read current background position if set
-            const bp = (imgPreview.style.backgroundPosition || '50% 50%').split(' ');
-            pos.x = parseFloat(bp[0]) || 50;
-            pos.y = parseFloat(bp[1]) || 50;
-            ev.target.setPointerCapture && ev.target.setPointerCapture(ev.pointerId);
-        };
-
-        const onPointerMove = (ev) => {
-            if (!isPanning) return;
-            ev.preventDefault();
-            const dx = ev.clientX - startX;
-            const dy = ev.clientY - startY;
-            const rect = imgPreview.getBoundingClientRect();
-            if (rect.width === 0 || rect.height === 0) return;
-            const dxPct = (dx / rect.width) * 100;
-            const dyPct = (dy / rect.height) * 100;
-            pos.x = clamp(pos.x + dxPct);
-            pos.y = clamp(pos.y + dyPct);
-            startX = ev.clientX;
-            startY = ev.clientY;
-            updateBgPos();
-        };
-
-        const onPointerUp = (ev) => {
-            if (!isPanning) return;
-            isPanning = false;
-            try { ev.target.releasePointerCapture && ev.target.releasePointerCapture(ev.pointerId); } catch(e) {}
-        };
-
-        // attach once
-        if (!placeholder._moveHandlersAttached) {
-            placeholder.addEventListener('pointerdown', onPointerDown);
-            window.addEventListener('pointermove', onPointerMove);
-            window.addEventListener('pointerup', onPointerUp);
-            placeholder._moveHandlersAttached = true;
-        }
-    } catch (e) {}
+    AppImage.ensureMoveUI({ imgInput, imgPreview });
 }
 const toNumber = (value) => AppLogic.toNumber(value);
 
@@ -553,24 +340,7 @@ function resetSheet() {
 
 function resetImage() {
     currentImageData = null;
-    imgPreview.style.backgroundImage = '';
-    imgPreview.classList.add('hidden');
-    if (imgInput) imgInput.value = '';
-    // Remove the has-image marker so the placeholder content becomes visible again
-    const container = imgInput?.closest('.char-img-placeholder');
-    if (container) {
-        container.classList.remove('has-image');
-        // remove move UI if present
-        const btn = container.querySelector('.move-handle');
-        if (btn) btn.remove();
-        const zoom = container.querySelector('.zoom-controls');
-        if (zoom) zoom.remove();
-        container.classList.remove('move-mode');
-        const label = container.querySelector('label[for="imgUpload"]');
-        if (label) label.style.pointerEvents = '';
-        // clear stored state
-        try { delete container._imgState; container._moveHandlersAttached = false; container._zoomHandlersAttached = false; } catch(e) {}
-    }
+    AppImage.resetImageUI({ imgInput, imgPreview });
 }
 
 // --- EXPORT VUE (SCREENSHOT) EN PDF ---

@@ -118,20 +118,17 @@
             return null;
         }
 
-        const imageData = data.char_image_data;
-        const imgPreview = options.imgPreview;
-        const imgInput = options.imgInput;
-
-        if (imgPreview) {
-            imgPreview.style.backgroundImage = `url(${imageData})`;
-            imgPreview.classList.remove('hidden');
+        const imageModule = global.CharacterSheetImage;
+        if (!imageModule || typeof imageModule.applyImageData !== 'function') {
+            return data.char_image_data;
         }
 
-        const container = imgInput?.closest('.char-img-placeholder');
-        if (container) container.classList.add('has-image');
-        try { options.ensureMoveUI(); } catch (error) {}
-
-        return imageData;
+        return imageModule.applyImageData({
+            imgInput: options.imgInput,
+            imgPreview: options.imgPreview,
+            imageData: data.char_image_data,
+            ensureMoveUI: options.ensureMoveUI
+        });
     }
 
     async function importJsonFile(file, options) {

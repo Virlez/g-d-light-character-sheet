@@ -423,10 +423,16 @@
                         weaponsScript.src = 'js/app-weapons.js?v=' + v;
                         weaponsScript.defer = true;
                         weaponsScript.onload = function () {
-                            const appScript = document.createElement('script');
-                            appScript.src = 'script.js?v=' + v;
-                            appScript.defer = true;
-                            document.body.appendChild(appScript);
+                            const imageScript = document.createElement('script');
+                            imageScript.src = 'js/app-image.js?v=' + v;
+                            imageScript.defer = true;
+                            imageScript.onload = function () {
+                                const appScript = document.createElement('script');
+                                appScript.src = 'script.js?v=' + v;
+                                appScript.defer = true;
+                                document.body.appendChild(appScript);
+                            };
+                            document.body.appendChild(imageScript);
                         };
                         document.body.appendChild(weaponsScript);
                     };
