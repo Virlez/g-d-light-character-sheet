@@ -431,10 +431,22 @@
                                 pdfScript.src = 'js/app-pdf.js?v=' + v;
                                 pdfScript.defer = true;
                                 pdfScript.onload = function () {
-                                    const appScript = document.createElement('script');
-                                    appScript.src = 'script.js?v=' + v;
-                                    appScript.defer = true;
-                                    document.body.appendChild(appScript);
+                                    const statsScript = document.createElement('script');
+                                    statsScript.src = 'js/app-stats.js?v=' + v;
+                                    statsScript.defer = true;
+                                    statsScript.onload = function () {
+                                        const shellScript = document.createElement('script');
+                                        shellScript.src = 'js/app-shell.js?v=' + v;
+                                        shellScript.defer = true;
+                                        shellScript.onload = function () {
+                                            const appScript = document.createElement('script');
+                                            appScript.src = 'script.js?v=' + v;
+                                            appScript.defer = true;
+                                            document.body.appendChild(appScript);
+                                        };
+                                        document.body.appendChild(shellScript);
+                                    };
+                                    document.body.appendChild(statsScript);
                                 };
                                 document.body.appendChild(pdfScript);
                             };
