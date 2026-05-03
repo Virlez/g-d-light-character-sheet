@@ -12,6 +12,34 @@ export class CharacterSheetPage {
     return this.page.locator(`#${id}`);
   }
 
+  testId(id: string): Locator {
+    return this.page.getByTestId(id);
+  }
+
+  forceTalentRow(): Locator {
+    return this.testId('force-talent-row');
+  }
+
+  photoCard(): Locator {
+    return this.testId('photo-card');
+  }
+
+  photoPreview(): Locator {
+    return this.testId('photo-preview');
+  }
+
+  inventoryRow(): Locator {
+    return this.testId('inventory-row');
+  }
+
+  exportPdfButton(): Locator {
+    return this.testId('export-pdf-button');
+  }
+
+  weaponRows(): Locator {
+    return this.testId('weapon-row');
+  }
+
   weaponRow(index: number): Locator {
     return this.page.getByTestId('weapon-row').nth(index);
   }
@@ -24,12 +52,34 @@ export class CharacterSheetPage {
     await this.inputById(id).fill(String(value));
   }
 
+  async setTextFields(fields: Record<string, string>): Promise<void> {
+    for (const [id, value] of Object.entries(fields)) {
+      await this.setText(id, value);
+    }
+  }
+
+  async setNumberFields(fields: Record<string, number | string>): Promise<void> {
+    for (const [id, value] of Object.entries(fields)) {
+      await this.setNumber(id, value);
+    }
+  }
+
+  async expectValues(fields: Record<string, string>): Promise<void> {
+    for (const [id, value] of Object.entries(fields)) {
+      await expect(this.inputById(id)).toHaveValue(value);
+    }
+  }
+
   async valueOf(id: string): Promise<string> {
     return this.inputById(id).inputValue();
   }
 
   async select(id: string, value: string): Promise<void> {
     await this.inputById(id).selectOption(value);
+  }
+
+  async check(id: string): Promise<void> {
+    await this.inputById(id).check();
   }
 
   async toggleForce(enabled: boolean): Promise<void> {
@@ -66,6 +116,12 @@ export class CharacterSheetPage {
 
   async uploadPhoto(filePath: string): Promise<void> {
     await this.page.getByTestId('photo-upload-input').setInputFiles(filePath);
+  }
+
+  async preparePdfPreviewForTests(): Promise<void> {
+    await this.page.evaluate(async () => {
+      await (window as typeof window & { preparePdfExportPreviewForTests?: () => Promise<unknown> }).preparePdfExportPreviewForTests?.();
+    });
   }
 
   async importJson(filePath: string): Promise<void> {

@@ -27,17 +27,19 @@ test.describe('Character sheet - persistence flows', () => {
     await sheet.goto();
     await sheet.importJson(modernCharacterFixture);
 
-    await expect(sheet.inputById('char_name')).toHaveValue('Kara Venn');
-    await expect(sheet.inputById('player_name')).toHaveValue('Kara Venn');
-    await expect(sheet.inputById('stat_pa')).toHaveValue('66');
-    await expect(sheet.inputById('stat_bp')).toHaveValue('7');
-    await expect(sheet.inputById('stat_shield')).toHaveValue('12');
-    await expect(page.getByTestId('force-talent-row')).not.toHaveClass(/hidden/);
-    await expect(sheet.inputById('talent_force_total')).toHaveValue('11');
-    await expect(page.getByTestId('weapon-row')).toHaveCount(2);
+    await sheet.expectValues({
+      char_name: 'Kara Venn',
+      player_name: 'Kara Venn',
+      stat_pa: '66',
+      stat_bp: '7',
+      stat_shield: '12',
+      talent_force_total: '11'
+    });
+    await expect(sheet.forceTalentRow()).not.toHaveClass(/hidden/);
+    await expect(sheet.weaponRows()).toHaveCount(2);
     await expect(sheet.weaponRow(0).getByTestId('weapon-name')).toHaveValue('Carabine blaster');
     await expect(sheet.weaponRow(1).getByTestId('weapon-total')).toHaveValue('11');
-    await expect(page.getByTestId('photo-card')).toHaveClass(/has-image/);
+    await expect(sheet.photoCard()).toHaveClass(/has-image/);
   });
 
   test('imports a legacy JSON save and converts old weapon keys', async ({ page }) => {
@@ -47,7 +49,7 @@ test.describe('Character sheet - persistence flows', () => {
     await sheet.importJson(legacyCharacterFixture);
 
     await expect(sheet.inputById('char_name')).toHaveValue('Ancien Modèle');
-    await expect(page.getByTestId('weapon-row')).toHaveCount(2);
+    await expect(sheet.weaponRows()).toHaveCount(2);
     await expect(sheet.weaponRow(0).getByTestId('weapon-name')).toHaveValue('Pistolet blaster');
     await expect(sheet.weaponRow(1).getByTestId('weapon-name')).toHaveValue('Vibrolame');
     await expect(sheet.inputById('inv_pa')).toHaveValue('40');
@@ -60,14 +62,16 @@ test.describe('Character sheet - persistence flows', () => {
     await sheet.importJson(modernCharacterFixture);
     await sheet.confirmReset();
 
-    await expect(sheet.inputById('char_name')).toHaveValue('');
-    await expect(sheet.inputById('player_name')).toHaveValue('');
-    await expect(sheet.inputById('armor_type')).toHaveValue('none');
-    await expect(sheet.inputById('inv_pa')).toHaveValue('');
-    await expect(sheet.inputById('stat_pa')).toHaveValue('');
-    await expect(page.getByTestId('force-talent-row')).toHaveClass(/hidden/);
-    await expect(page.getByTestId('photo-card')).not.toHaveClass(/has-image/);
-    await expect(page.getByTestId('weapon-row')).toHaveCount(1);
+    await sheet.expectValues({
+      char_name: '',
+      player_name: '',
+      armor_type: 'none',
+      inv_pa: '',
+      stat_pa: ''
+    });
+    await expect(sheet.forceTalentRow()).toHaveClass(/hidden/);
+    await expect(sheet.photoCard()).not.toHaveClass(/has-image/);
+    await expect(sheet.weaponRows()).toHaveCount(1);
     await expect(sheet.weaponRow(0).getByTestId('weapon-name')).toHaveValue('');
   });
 });

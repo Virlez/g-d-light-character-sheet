@@ -6,15 +6,17 @@ test.describe('Character sheet - PDF export', () => {
     const sheet = new CharacterSheetPage(page);
 
     await sheet.goto();
-    await sheet.setText('char_name', 'Export PDF QA');
-    await sheet.setText('player_name', 'Chromium Bot');
-    await sheet.setText('talents', 'Projection\nDétection\nPersuasion');
+    await sheet.setTextFields({
+      char_name: 'Export PDF QA',
+      player_name: 'Chromium Bot',
+      talents: 'Projection\nDétection\nPersuasion'
+    });
 
     const download = await sheet.exportPdf();
     expect(download.suggestedFilename()).toBe('Export PDF QA.pdf');
 
-    await expect(page.getByTestId('export-pdf-button')).toBeEnabled();
-    await expect(page.getByTestId('export-pdf-button')).toContainText('Exporter en PDF');
+    await expect(sheet.exportPdfButton()).toBeEnabled();
+    await expect(sheet.exportPdfButton()).toContainText('Exporter en PDF');
   });
 
   test('forces a desktop-like render width for PDF export on mobile', async ({ page }, testInfo) => {
@@ -23,9 +25,11 @@ test.describe('Character sheet - PDF export', () => {
     const sheet = new CharacterSheetPage(page);
 
     await sheet.goto();
-    await sheet.setText('char_name', 'Export Mobile PDF');
-    await sheet.setText('player_name', 'Mobile QA');
-    await sheet.setText('talents', 'Projection\nDétection\nPersuasion');
+    await sheet.setTextFields({
+      char_name: 'Export Mobile PDF',
+      player_name: 'Mobile QA',
+      talents: 'Projection\nDétection\nPersuasion'
+    });
 
     const download = await sheet.exportPdf();
     expect(download.suggestedFilename()).toBe('Export Mobile PDF.pdf');
@@ -43,47 +47,48 @@ test.describe('Character sheet - PDF export', () => {
     const sheet = new CharacterSheetPage(page);
 
     await sheet.goto();
-    await sheet.setText('char_name', 'Vyndor Vyn Andorra');
-    await sheet.setText('player_name', 'Sirkeoso');
-    await sheet.setText('guild_name', 'Arcanum Astrolis');
-    await sheet.setText('char_alias', 'Darth Notius');
-    await sheet.setText('char_race', 'Tsis');
-    await sheet.setText('char_sex', '18 cm');
-    await sheet.setText('char_age', '1m86 / 44 ans');
-    await sheet.setText('race_details', 'Tsis (kisso) +1 bonus en Force');
-    await sheet.setText('lang_live', 'Basic, Sith, Hout sith, binaire, huttese');
-    await sheet.setText('lang_dead', 'Sith ancien, Hout Tsis ancien');
-    await sheet.setText('talents', 'Vigoureux : (+1) en valeur bonus de Constitution\nDisciple martial : (+1) en physique\nArtiste martial : (+1) en valeur bonus Physique\nMaître obscur : augmente de +2 les dégâts de l\'utilisation de la Force obscure.');
+    await sheet.setTextFields({
+      char_name: 'Vyndor Vyn Andorra',
+      player_name: 'Sirkeoso',
+      guild_name: 'Arcanum Astrolis',
+      char_alias: 'Darth Notius',
+      char_race: 'Tsis',
+      char_sex: '18 cm',
+      char_age: '1m86 / 44 ans',
+      race_details: 'Tsis (kisso) +1 bonus en Force',
+      lang_live: 'Basic, Sith, Hout sith, binaire, huttese',
+      lang_dead: 'Sith ancien, Hout Tsis ancien',
+      talents: 'Vigoureux : (+1) en valeur bonus de Constitution\nDisciple martial : (+1) en physique\nArtiste martial : (+1) en valeur bonus Physique\nMaître obscur : augmente de +2 les dégâts de l\'utilisation de la Force obscure.'
+    });
     await sheet.toggleForce(true);
-    await sheet.setNumber('attr_con', 6);
-    await sheet.setNumber('attr_con_bonus', 2);
-    await sheet.setNumber('attr_str', 6);
-    await sheet.setNumber('attr_str_bonus', 3);
-    await sheet.setNumber('attr_phy', 7);
-    await sheet.setNumber('attr_phy_bonus', 2);
-    await sheet.setNumber('attr_dist', 2);
-    await sheet.setNumber('attr_dist_bonus', 0);
-    await sheet.setNumber('attr_know', 6);
-    await sheet.setNumber('attr_know_bonus', 0);
-    await sheet.setNumber('attr_soc', 5);
-    await sheet.setNumber('attr_soc_bonus', 1);
-    await sheet.setNumber('attr_pilot', 2);
-    await sheet.setNumber('attr_pilot_bonus', 0);
-    await sheet.setNumber('attr_expl', 5);
-    await sheet.setNumber('attr_expl_bonus', 0);
+    await sheet.setNumberFields({
+      attr_con: 6,
+      attr_con_bonus: 2,
+      attr_str: 6,
+      attr_str_bonus: 3,
+      attr_phy: 7,
+      attr_phy_bonus: 2,
+      attr_dist: 2,
+      attr_dist_bonus: 0,
+      attr_know: 6,
+      attr_know_bonus: 0,
+      attr_soc: 5,
+      attr_soc_bonus: 1,
+      attr_pilot: 2,
+      attr_pilot_bonus: 0,
+      attr_expl: 5,
+      attr_expl_bonus: 0,
+      inv_bp: 5,
+      inv_shield: 3,
+      talent_force_bonus: 2
+    });
     await sheet.select('armor_type', '60');
-    await page.locator('#armor_exotic').check();
-    await sheet.setNumber('inv_bp', 5);
-    await sheet.setNumber('inv_shield', 3);
+    await sheet.check('armor_exotic');
     await sheet.fillWeapon(0, { name: 'Sabre laser', base: 5, attr: 'phy', bonus: 2 });
     await sheet.setText('inv_misc', 'Kits : Medipock, Stimpock, repackock\nArmure noire : bouclier psychique intégré et résistant aux armes énergétique');
-    await sheet.setNumber('talent_force_bonus', 2);
 
     await sheet.uploadPhoto('c:/Users/pauli/OneDrive/Documents/g-d-light-character-sheet/tests/fixtures/portrait.svg');
-
-    await page.evaluate(async () => {
-      await (window as typeof window & { preparePdfExportPreviewForTests?: () => Promise<unknown> }).preparePdfExportPreviewForTests?.();
-    });
+    await sheet.preparePdfPreviewForTests();
 
     const preview = page.getByTestId('pdf-export-preview');
     await expect(preview).toBeVisible();
