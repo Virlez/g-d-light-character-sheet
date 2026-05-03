@@ -427,10 +427,16 @@
                             imageScript.src = 'js/app-image.js?v=' + v;
                             imageScript.defer = true;
                             imageScript.onload = function () {
-                                const appScript = document.createElement('script');
-                                appScript.src = 'script.js?v=' + v;
-                                appScript.defer = true;
-                                document.body.appendChild(appScript);
+                                const pdfScript = document.createElement('script');
+                                pdfScript.src = 'js/app-pdf.js?v=' + v;
+                                pdfScript.defer = true;
+                                pdfScript.onload = function () {
+                                    const appScript = document.createElement('script');
+                                    appScript.src = 'script.js?v=' + v;
+                                    appScript.defer = true;
+                                    document.body.appendChild(appScript);
+                                };
+                                document.body.appendChild(pdfScript);
                             };
                             document.body.appendChild(imageScript);
                         };
