@@ -166,6 +166,10 @@
             return AppPdf.exportScreenshotPDF();
         }
 
+        async function exportScreenshotJPEG() {
+            return AppPdf.exportScreenshotJPEG();
+        }
+
         initTextareas();
         bindImageFeature();
 
@@ -188,7 +192,8 @@
             clearPdfExportPreviewClone,
             buildPdfExportClone,
             preparePdfExportPreviewForTests,
-            exportScreenshotPDF
+            exportScreenshotPDF,
+            exportScreenshotJPEG
         };
     }
 

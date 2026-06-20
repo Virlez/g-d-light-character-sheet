@@ -368,7 +368,7 @@
             const pdf = new global.jspdf.jsPDF('p', 'mm', 'a4');
             addCanvasToPdf(pdf, canvas, imageData);
 
-            const fileName = `${document.getElementById('char_name')?.value || 'fiche'}.pdf`;
+            const fileName = `Fiche ${document.getElementById('char_name')?.value || 'fiche'}.pdf`;
             pdf.save(fileName);
         } catch (error) {
             console.error(error);
@@ -381,10 +381,45 @@
         }
     }
 
+    async function exportScreenshotJPEG() {
+        const button = document.getElementById('screenshotJpegBtn');
+        try {
+            if (button) {
+                button.disabled = true;
+                button.textContent = 'Génération...';
+            }
+
+            const { target, clone, opts, cleanup } = await buildPdfExportClone();
+            let canvas = await global.html2canvas(clone, opts);
+            const cloneBackground = clone.style.background || global.getComputedStyle(target).backgroundColor || '';
+            cleanup();
+
+            canvas = cropTrailingBackground(canvas, cloneBackground);
+
+            const imageData = canvas.toDataURL('image/jpeg', 0.95);
+            const charName = document.getElementById('char_name')?.value || 'fiche';
+            const fileName = `Fiche ${charName}.jpeg`;
+
+            const link = document.createElement('a');
+            link.href = imageData;
+            link.download = fileName;
+            link.click();
+        } catch (error) {
+            console.error(error);
+            alert('Erreur lors de la génération du JPEG.');
+        } finally {
+            if (button) {
+                button.disabled = false;
+                button.textContent = 'Exporter en Image';
+            }
+        }
+    }
+
     global.CharacterSheetPdf = {
         clearPdfExportPreviewClone,
         buildPdfExportClone,
         preparePdfExportPreviewForTests,
-        exportScreenshotPDF
+        exportScreenshotPDF,
+        exportScreenshotJPEG
     };
 })(window);
