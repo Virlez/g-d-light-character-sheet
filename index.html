@@ -67,7 +67,16 @@
                                class="w-full px-3 py-2 bg-[#002e33] border border-[#004e53] text-[#00f0ff] rounded outline-none text-sm focus:border-[#00f0ff] transition-colors">
                     </div>
                 </div>
+                <div class="mt-3 flex items-center justify-end">
+                    <button type="button" id="authForgotPasswordBtn" onclick="handleForgotPassword()"
+                            class="text-gray-500 hover:text-[#00f0ff] text-xs transition-colors tracking-wider">
+                        Mot de passe oublié ?
+                    </button>
+                </div>
                 <div id="authMessage" class="mt-3 text-xs hidden"></div>
+                <div id="authRecoveryHint" class="mt-3 text-xs text-gray-500 hidden">
+                    Entrez votre nouveau mot de passe puis validez pour terminer la récupération.
+                </div>
                 <button type="submit" id="authSubmitBtn" data-mode="login"
                         class="w-full mt-5 bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-sm">
                     Se connecter
@@ -373,7 +382,7 @@
                 <h2 class="text-lg text-[#00f0ff] mb-2 border-b border-[#004e53] flex justify-between">
                     <span>Talents & Capacités</span>
                 </h2>
-                <textarea id="talents" class="w-full h-screen bg-transparent border border-[#004e53] p-2 text-base leading-relaxed text-[#c4f0ff] focus:bg-[#00141a]" placeholder="Listez vos talents ici..."></textarea>
+                <textarea id="talents" class="w-full bg-transparent border border-[#004e53] p-2 text-base leading-relaxed text-[#c4f0ff] focus:bg-[#00141a]" style="min-height:6rem;overflow:hidden" placeholder="Listez vos talents ici..."></textarea>
 
                 <div id="talent_force_row" data-testid="force-talent-row" class="mb-3 p-2 hidden">
                     <label class="block text-sm text-gray-400 mb-1">Dégâts / Soins de Force</label>
@@ -472,17 +481,47 @@
 
     <!-- FAB Speed Dial -->
     <style>
-        #fabItems { transition: opacity 0.15s ease, transform 0.15s ease; }
+        #fabMenu { --fab-action-width: 3.5rem; }
+        #fabItems {
+            transition: opacity 0.15s ease, transform 0.15s ease;
+            width: var(--fab-action-width);
+        }
         #fabItems.fab-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
         #fabItems.fab-closed { opacity: 0; transform: translateY(8px); pointer-events: none; }
-        .fab-label {
-            opacity: 0;
-            transform: translateX(6px);
-            transition: opacity 0.1s ease, transform 0.1s ease;
-            pointer-events: none;
+        .fab-item {
+            width: 100%;
+            justify-content: flex-end;
         }
-        .fab-item:hover .fab-label,
-        .fab-item:focus-within .fab-label { opacity: 1; transform: translateX(0); pointer-events: auto; }
+        .fab-action {
+            width: 3.5rem;
+            height: 3.5rem;
+            padding: 0;
+            border-radius: 9999px;
+            border: 1px solid #004e53;
+            background: #001a1f;
+            color: #00f0ff;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0;
+            box-shadow: 0 10px 24px rgba(0, 0, 0, 0.25);
+            transition: transform 0.15s ease, background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+        }
+        .fab-action:hover,
+        .fab-action:focus-visible {
+            background: #00f0ff;
+            color: #000;
+            border-color: #00f0ff;
+            transform: translateY(-1px);
+        }
+        .fab-action__icon {
+            width: 1.35rem;
+            height: 1.35rem;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            flex: none;
+        }
     </style>
 
     <div id="fabMenu" class="fixed bottom-6 right-6 z-40 no-print flex flex-col items-end gap-2">
@@ -490,32 +529,29 @@
         <!-- Action items (visible when open) -->
         <div id="fabItems" class="fab-closed flex flex-col items-end gap-2">
 
-            <!-- Réinitialiser -->
-            <div class="fab-item flex items-center gap-2">
-                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-red-800 text-red-400 px-3 py-1 rounded whitespace-nowrap">Réinitialiser</span>
-                <button data-testid="reset-sheet-button" onclick="resetSheet()" title="Réinitialiser"
-                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-red-900 text-red-500 hover:bg-red-900 hover:text-red-300 flex items-center justify-center shadow-lg transition-colors text-base">
-                    &#x21BA;
-                </button>
-            </div>
-
             <div class="w-8 h-px bg-[#004e53] mr-1"></div>
 
             <!-- Exporter Image -->
             <div class="fab-item flex items-center gap-2">
-                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Exporter Image</span>
-                <button id="screenshotJpegBtn" data-testid="export-jpeg-button" onclick="exportScreenshotJPEG()" title="Exporter en Image"
-                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
-                    &#x1F5BC;
+                <button id="screenshotJpegBtn" data-testid="export-jpeg-button" onclick="exportScreenshotJPEG()" title="Exporter en image"
+                        aria-label="Exporter en image"
+                        class="fab-action">
+                    <span class="fab-action__icon" aria-hidden="true">🖼</span>
                 </button>
             </div>
 
             <!-- Exporter PDF -->
             <div class="fab-item flex items-center gap-2">
-                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Exporter PDF</span>
-                <button id="screenshotPdfBtn" data-testid="export-pdf-button" onclick="exportScreenshotPDF()" title="Exporter en PDF"
-                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
-                    &#x1F4C4;
+                <button id="screenshotPdfBtn" data-testid="export-pdf-button" onclick="exportScreenshotPDF()" title="Télécharger le PDF"
+                        aria-label="Télécharger le PDF"
+                        class="fab-action">
+                    <span class="fab-action__icon" aria-hidden="true">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" focusable="false" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M12 3v10" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="m8 9 4 4 4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M5 20h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                        </svg>
+                    </span>
                 </button>
             </div>
 
@@ -523,39 +559,28 @@
 
             <!-- Charger JSON -->
             <div class="fab-item flex items-center gap-2">
-                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Charger (JSON)</span>
                 <button data-testid="import-json-button" onclick="document.getElementById('importFile').click()" title="Charger JSON"
-                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-lg font-bold">
-                    &#x2191;
+                        aria-label="Charger JSON"
+                        class="fab-action">
+                    <span class="fab-action__icon" aria-hidden="true">↑</span>
                 </button>
             </div>
 
             <!-- Sauvegarder JSON -->
             <div class="fab-item flex items-center gap-2">
-                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Sauvegarder (JSON)</span>
                 <button data-testid="export-json-button" onclick="exportJSON()" title="Sauvegarder JSON"
-                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-lg font-bold">
-                    &#x2193;
+                        aria-label="Sauvegarder JSON"
+                        class="fab-action">
+                    <span class="fab-action__icon" aria-hidden="true">↓</span>
                 </button>
             </div>
-
-            <div class="w-8 h-px bg-[#004e53] mr-1"></div>
 
             <!-- Mes fiches -->
             <div class="fab-item flex items-center gap-2">
-                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Mes fiches</span>
                 <button data-testid="open-storage-panel-button" onclick="showHomeView()" title="Mes fiches"
-                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
-                    &#x1F4C2;
-                </button>
-            </div>
-
-            <!-- Sauvegarder localement -->
-            <div class="fab-item flex items-center gap-2">
-                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Sauvegarder localement</span>
-                <button data-testid="save-local-button" onclick="saveSheetLocally()" title="Sauvegarder localement"
-                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
-                    &#x1F4BE;
+                        aria-label="Mes fiches"
+                        class="fab-action">
+                    <span class="fab-action__icon" aria-hidden="true">📂</span>
                 </button>
             </div>
 
@@ -563,6 +588,7 @@
 
         <!-- Main FAB toggle -->
         <button id="fabToggle" data-testid="fab-toggle" onclick="toggleFabMenu()" title="Menu"
+                aria-label="Menu actions"
                 class="w-14 h-14 rounded-full bg-[#001a1f] border-2 border-[#00f0ff] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-xl transition-all duration-200 text-2xl font-bold">
             &#9776;
         </button>

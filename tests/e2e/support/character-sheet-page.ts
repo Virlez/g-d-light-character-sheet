@@ -140,7 +140,9 @@ export class CharacterSheetPage {
       });
     });
 
-    await this.page.getByTestId('reset-sheet-button').dispatchEvent('click');
+    await this.page.evaluate(() => {
+      (window as typeof window & { resetSheet?: () => void }).resetSheet?.();
+    });
     await dialogHandled;
   }
 

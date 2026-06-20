@@ -13,6 +13,10 @@
         const imgPreview = document.getElementById('imgPreview');
         let currentImageData = null;
         let currentSheetId = null;
+        let authMode = 'login';
+        let autosaveTimer = null;
+        let autosaveInFlight = false;
+        let autosaveQueued = false;
         const toNumber = (value) => AppLogic.toNumber(value);
 
         function autoExpandTextarea(textarea) {
@@ -31,10 +35,12 @@
 
         function addWeapon() {
             renderWeapon();
+            scheduleAutosave(250);
         }
 
         function deleteWeapon(button) {
             AppWeapons.deleteWeapon(button, { computeAllWeaponTotals });
+            scheduleAutosave(250);
         }
 
         function renderWeapon(data = {}) {
@@ -67,6 +73,7 @@
                 ensureMoveUI,
                 onImageChange: (imageData) => {
                     currentImageData = imageData;
+                    scheduleAutosave(250);
                 }
             });
         }
@@ -99,6 +106,70 @@
         AppStats.installInitLifecycle({ initSheet });
         const publicUpdateInvPA = AppStats.installGlobalUpdateInvPAWrapper(updateInvPA);
 
+        async function persistCurrentSheet(options = {}) {
+            const silent = !!options.silent;
+
+            try { computeAllWeaponTotals(); } catch (error) {}
+            try { computeDerivedStats(); } catch (error) {}
+
+            const data = AppPersistence.collectExportData({ currentImageData, toNumber });
+            const isUpdate = currentSheetId !== null;
+
+            currentSheetId = isLoggedIn()
+                ? await AppCloud.saveSheet(data, currentSheetId)
+                : AppPersistence.saveSheetToLocalStorage(data, currentSheetId);
+
+            if (!silent) {
+                alert(isUpdate ? 'Fiche mise à jour !' : 'Fiche sauvegardée !');
+            }
+
+            return currentSheetId;
+        }
+
+        async function flushAutosave() {
+            if (autosaveInFlight) {
+                autosaveQueued = true;
+                return;
+            }
+
+            autosaveInFlight = true;
+            try {
+                await persistCurrentSheet({ silent: true });
+            } catch (error) {
+                console.error('[autosave]', error);
+            } finally {
+                autosaveInFlight = false;
+                if (autosaveQueued) {
+                    autosaveQueued = false;
+                    scheduleAutosave(300);
+                }
+            }
+        }
+
+        function scheduleAutosave(delay = 800) {
+            if (document.getElementById('sheetView')?.classList.contains('hidden')) return;
+            if (autosaveTimer) clearTimeout(autosaveTimer);
+            autosaveTimer = setTimeout(() => {
+                autosaveTimer = null;
+                flushAutosave();
+            }, delay);
+        }
+
+        function installAutosave() {
+            const sheetRoot = document.getElementById('sheetRoot');
+            if (!sheetRoot) return;
+
+            const handleFieldChange = (event) => {
+                const target = event.target;
+                if (!target || !target.matches('input, textarea, select')) return;
+                if (target.type === 'file') return;
+                scheduleAutosave();
+            };
+
+            sheetRoot.addEventListener('input', handleFieldChange, true);
+            sheetRoot.addEventListener('change', handleFieldChange, true);
+        }
+
         function exportJSON() {
             try { computeAllWeaponTotals(); } catch (error) {}
             try { computeDerivedStats(); } catch (error) {}
@@ -130,6 +201,7 @@
                 computeDerivedStats
             }).then((result) => {
                 currentImageData = result.currentImageData;
+                scheduleAutosave(250);
                 alert('Fiche chargée avec succès !');
             }).catch((error) => {
                 console.error(error);
@@ -151,6 +223,7 @@
                 updateInvPA: publicUpdateInvPA,
                 computeDerivedStats
             });
+            scheduleAutosave(0);
         }
 
         function clearPdfExportPreviewClone() {
@@ -174,16 +247,8 @@
         }
 
         async function saveSheetLocally() {
-            try { computeAllWeaponTotals(); } catch (error) {}
-            try { computeDerivedStats(); } catch (error) {}
-
-            const data = AppPersistence.collectExportData({ currentImageData, toNumber });
-            const isUpdate = currentSheetId !== null;
             try {
-                currentSheetId = isLoggedIn()
-                    ? await AppCloud.saveSheet(data, currentSheetId)
-                    : AppPersistence.saveSheetToLocalStorage(data, currentSheetId);
-                alert(isUpdate ? 'Fiche mise à jour !' : 'Fiche sauvegardée !');
+                await persistCurrentSheet();
             } catch (e) {
                 alert('Erreur lors de la sauvegarde.');
             }
@@ -371,6 +436,8 @@
             currentImageData = result.currentImageData;
             currentSheetId = id;
             showSheetView();
+            // Re-expand after the sheet is visible (scrollHeight is 0 while hidden)
+            requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autoExpandTextarea));
         }
 
         async function deleteSheetFromHome(id) {
@@ -399,6 +466,7 @@
                     ? await AppCloud.saveSheet(data, null)
                     : AppPersistence.saveSheetToLocalStorage(data, null);
                 showSheetView();
+                requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autoExpandTextarea));
             }).catch((error) => {
                 console.error(error);
                 alert('Erreur lors de la lecture du fichier JSON.');
@@ -415,22 +483,177 @@
             closeFabMenu();
         }
 
-        function switchAuthTab(tab) {
-            const isLogin = tab === 'login';
+        function setAuthMessage(text, tone) {
+            const msgEl = document.getElementById('authMessage');
+            if (!msgEl) return;
+            if (!text) {
+                msgEl.textContent = '';
+                msgEl.className = 'mt-3 text-xs hidden';
+                return;
+            }
+
+            msgEl.textContent = text;
+            msgEl.className = tone === 'error'
+                ? 'mt-3 text-xs text-red-400'
+                : 'mt-3 text-xs text-[#00f0ff]';
+        }
+
+        function formatAuthError(error, context) {
+            const directName = String(error?.name || '').toLowerCase();
+            const directCode = String(error?.code || '').toLowerCase();
+            const directStatus = Number(error?.status || 0);
+
+            const extractRawMessage = () => {
+                if (!error) return '';
+                if (typeof error === 'string') return error;
+                if (typeof error.message === 'string') return error.message;
+                if (typeof error.error_description === 'string') return error.error_description;
+                if (typeof error.details === 'string') return error.details;
+                return '';
+            };
+
+            let raw = extractRawMessage().trim();
+            if (!raw || raw === '{}' || raw === '[object Object]') {
+                try {
+                    const serialized = JSON.stringify(error);
+                    if (serialized && serialized !== '{}' && serialized !== 'null') {
+                        raw = serialized;
+                    }
+                } catch (e) {
+                    raw = '';
+                }
+            }
+
+            // Some Supabase/network failures come back as serialized JSON errors.
+            let parsed = null;
+            if (raw.startsWith('{') && raw.endsWith('}')) {
+                try {
+                    parsed = JSON.parse(raw);
+                } catch (e) {
+                    parsed = null;
+                }
+            }
+
+            const parsedName = String(parsed?.name || '').toLowerCase();
+            const parsedCode = String(parsed?.code || '').toLowerCase();
+            const parsedMessage = String(parsed?.message || '').toLowerCase();
+            const parsedStatus = Number(parsed?.status || 0);
+
+            if (
+                parsedName.includes('authretryablefetcherror') ||
+                directName.includes('authretryablefetcherror') ||
+                parsedStatus >= 500 ||
+                directStatus >= 500
+            ) {
+                return 'Service d\'authentification temporairement indisponible. Reessayez dans quelques instants.';
+            }
+
+            if (directCode === 'email_not_confirmed' || parsedCode === 'email_not_confirmed') {
+                return 'Email non confirme. Verifiez votre boite mail puis confirmez votre compte.';
+            }
+
+            if (directCode === 'user_not_found' || parsedCode === 'user_not_found') {
+                return 'Aucun compte trouve pour cet email.';
+            }
+
+            if (
+                context === 'login' &&
+                (directStatus === 400 || parsedStatus === 400) &&
+                (parsedMessage === '{}' || parsedMessage === '' || directName.includes('authapierror') || parsedName.includes('authapierror'))
+            ) {
+                return 'Connexion impossible. Verifiez vos identifiants et confirmez votre email de creation de compte.';
+            }
+
+            if (parsedMessage === '{}' || parsedMessage === '') {
+                raw = 'Erreur du service d\'authentification.';
+            }
+
+            if (!raw || raw === '{}' || raw === '[object Object]') {
+                raw = 'Erreur du service d\'authentification.';
+            }
+
+            const msg = raw.toLowerCase();
+
+            if (msg.includes('rate limit')) {
+                return 'Trop de tentatives. Attendez quelques minutes puis reessayez.';
+            }
+
+            if (context === 'signup' && msg.includes('already registered')) {
+                return 'Cet email est deja inscrit. Connectez-vous ou utilisez "Mot de passe oublie ?".';
+            }
+
+            if (msg.includes('invalid login credentials')) {
+                return 'Email ou mot de passe incorrect.';
+            }
+
+            if (context === 'signup' && (msg.includes('user already') || msg.includes('already exists'))) {
+                return 'Cet email est deja inscrit. Connectez-vous ou utilisez "Mot de passe oublie ?".';
+            }
+
+            if (msg.includes('password should be at least')) {
+                return 'Le mot de passe est trop court.';
+            }
+
+            return raw;
+        }
+
+        function setAuthMode(mode) {
+            authMode = mode;
+            const isLogin = mode === 'login';
+            const isRegister = mode === 'register';
+            const isRecovery = mode === 'recovery';
             const base = 'flex-1 py-2 text-sm uppercase font-bold tracking-widest -mb-px transition-colors';
             const active = ' text-[#00f0ff] border-b-2 border-[#00f0ff]';
             const inactive = ' text-gray-500 border-b-2 border-transparent';
             const loginBtn = document.getElementById('authTabLogin');
             const registerBtn = document.getElementById('authTabRegister');
             const submitBtn = document.getElementById('authSubmitBtn');
+            const passwordInput = document.getElementById('authPassword');
+            const forgotBtn = document.getElementById('authForgotPasswordBtn');
+            const recoveryHint = document.getElementById('authRecoveryHint');
+
             if (loginBtn) loginBtn.className = base + (isLogin ? active : inactive);
-            if (registerBtn) registerBtn.className = base + (!isLogin ? active : inactive);
+            if (registerBtn) registerBtn.className = base + (isRegister ? active : inactive);
+            if (loginBtn) loginBtn.disabled = isRecovery;
+            if (registerBtn) registerBtn.disabled = isRecovery;
             if (submitBtn) {
-                submitBtn.textContent = isLogin ? 'Se connecter' : "S'inscrire";
-                submitBtn.dataset.mode = isLogin ? 'login' : 'register';
+                submitBtn.dataset.mode = mode;
+                submitBtn.textContent = isLogin
+                    ? 'Se connecter'
+                    : isRegister
+                        ? "S'inscrire"
+                        : 'Mettre a jour';
             }
-            const msgEl = document.getElementById('authMessage');
-            if (msgEl) msgEl.classList.add('hidden');
+            if (passwordInput) {
+                passwordInput.required = true;
+                passwordInput.autocomplete = isRecovery ? 'new-password' : isLogin ? 'current-password' : 'new-password';
+                passwordInput.placeholder = isRecovery ? 'Nouveau mot de passe' : '';
+                passwordInput.value = '';
+            }
+            if (forgotBtn) forgotBtn.classList.toggle('hidden', !isLogin);
+            if (recoveryHint) recoveryHint.classList.toggle('hidden', !isRecovery);
+            setAuthMessage('', 'info');
+        }
+
+        function switchAuthTab(tab) {
+            setAuthMode(tab === 'login' ? 'login' : 'register');
+        }
+
+        async function handleForgotPassword() {
+            const email = document.getElementById('authEmail')?.value.trim();
+            if (!email) {
+                setAuthMessage('Saisissez votre email pour recevoir un lien de reinitialisation.', 'error');
+                return;
+            }
+
+            try {
+                await AppAuth.resetPassword(email);
+                setAuthMessage('Email de reinitialisation envoye. Verifiez votre boite mail.', 'info');
+            } catch (error) {
+                console.error('[auth:forgot]', error);
+                const message = formatAuthError(error, 'forgot');
+                setAuthMessage(message, 'error');
+            }
         }
 
         async function handleAuthSubmit(event) {
@@ -438,31 +661,51 @@
             const email = document.getElementById('authEmail')?.value.trim();
             const password = document.getElementById('authPassword')?.value;
             const submitBtn = document.getElementById('authSubmitBtn');
-            const msgEl = document.getElementById('authMessage');
-            const isLogin = submitBtn?.dataset.mode !== 'register';
+            const mode = authMode;
+            const isLogin = mode === 'login';
+            const isRecovery = mode === 'recovery';
 
-            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isLogin ? 'Connexion...' : 'Inscription...'; }
-            if (msgEl) msgEl.className = 'mt-3 text-xs hidden';
+            if (!email && !isRecovery) {
+                setAuthMessage('Email requis.', 'error');
+                return;
+            }
+            if (!password) {
+                setAuthMessage('Mot de passe requis.', 'error');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = isLogin
+                    ? 'Connexion...'
+                    : mode === 'register'
+                        ? 'Inscription...'
+                        : 'Mise a jour...';
+            }
+            setAuthMessage('', 'info');
 
             try {
-                if (isLogin) {
+                if (isRecovery) {
+                    await AppAuth.updatePassword(password);
+                    setAuthMessage('Mot de passe mis a jour. Vous pouvez maintenant vous connecter.', 'info');
+                    setAuthMode('login');
+                } else if (isLogin) {
                     await AppAuth.signIn(email, password);
                 } else {
                     await AppAuth.signUp(email, password);
-                    if (msgEl) {
-                        msgEl.textContent = 'Compte créé ! Vérifiez vos emails pour confirmer votre inscription.';
-                        msgEl.className = 'mt-3 text-xs text-[#00f0ff]';
-                    }
+                    setAuthMessage('Compte cree ! Verifiez vos emails pour confirmer votre inscription.', 'info');
                 }
             } catch (error) {
-                if (msgEl) {
-                    msgEl.textContent = error.message || 'Une erreur est survenue.';
-                    msgEl.className = 'mt-3 text-xs text-red-400';
-                }
+                console.error('[auth:submit]', error);
+                setAuthMessage(formatAuthError(error, isLogin ? 'login' : isRecovery ? 'recovery' : 'signup'), 'error');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = isLogin ? 'Se connecter' : "S'inscrire";
+                    submitBtn.textContent = mode === 'login'
+                        ? 'Se connecter'
+                        : mode === 'register'
+                            ? "S'inscrire"
+                            : 'Mettre a jour';
                 }
             }
         }
@@ -527,11 +770,21 @@
 
         initTextareas();
         bindImageFeature();
+        installAutosave();
+        setAuthMode('login');
+
+        function detectRecoveryRedirect() {
+            const hash = window.location.hash ? window.location.hash.replace(/^#/, '') : '';
+            const search = window.location.search ? window.location.search.replace(/^\?/, '') : '';
+            const combined = `${hash}&${search}`;
+            return /(?:^|[&?])type=recovery(?:&|$)/.test(combined);
+        }
 
         // Initialise auth + routing
         (async function () {
             window.__currentSession = null;
             const noAuth = new URLSearchParams(location.search).has('noauth');
+            let recoveryRedirect = detectRecoveryRedirect();
 
             if (noAuth || !AppAuth.isConfigured()) {
                 // No Supabase configured, or test bypass — use localStorage only
@@ -543,20 +796,38 @@
                 return;
             }
 
+            try {
+                const redirectState = await AppAuth.consumeAuthRedirect();
+                recoveryRedirect = recoveryRedirect || !!redirectState?.isRecovery;
+            } catch (error) {
+                console.error('[auth:redirect]', error);
+            }
+
             const session = await AppAuth.getSession();
             window.__currentSession = session;
-            if (session) {
+            if (recoveryRedirect) {
+                showAuthView();
+                setAuthMode('recovery');
+                setAuthMessage('Choisissez un nouveau mot de passe pour terminer la recuperation.', 'info');
+            }
+
+            if (!recoveryRedirect && session) {
                 showHomeView();
-            } else {
+            } else if (!recoveryRedirect) {
                 showAuthView();
             }
 
             AppAuth.onAuthStateChange(async (event, sess) => {
                 window.__currentSession = sess;
-                if (event === 'SIGNED_IN') {
+                if (event === 'PASSWORD_RECOVERY') {
+                    showAuthView();
+                    setAuthMode('recovery');
+                    setAuthMessage('Choisissez un nouveau mot de passe pour terminer la recuperation.', 'info');
+                } else if (event === 'SIGNED_IN') {
                     await handlePostSignIn();
                 } else if (event === 'SIGNED_OUT') {
                     showAuthView();
+                    setAuthMode('login');
                 }
             });
         })();
@@ -597,6 +868,7 @@
             deleteSheetFromHome,
             importJSONFromHome,
             switchAuthTab,
+            handleForgotPassword,
             handleAuthSubmit,
             continueWithoutAccount,
             handleLogout,

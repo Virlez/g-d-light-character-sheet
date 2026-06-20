@@ -63,10 +63,10 @@ test.describe('Character sheet - PDF export', () => {
     await sheet.setTextFields(PDF_SMOKE_FIELDS);
 
     const download = await sheet.exportPdf();
-    expect(download.suggestedFilename()).toBe('Export PDF QA.pdf');
+    expect(download.suggestedFilename()).toBe('Fiche Export PDF QA.pdf');
 
     await expect(sheet.exportPdfButton()).toBeEnabled();
-    await expect(sheet.exportPdfButton()).toContainText('Exporter en PDF');
+    await expect(sheet.exportPdfButton()).toHaveAttribute('title', 'Exporter en PDF');
   });
 
   test('forces a desktop-like render width for PDF export on mobile', async ({ page }, testInfo) => {
@@ -78,7 +78,7 @@ test.describe('Character sheet - PDF export', () => {
     await sheet.setTextFields(MOBILE_PDF_FIELDS);
 
     const download = await sheet.exportPdf();
-    expect(download.suggestedFilename()).toBe('Export Mobile PDF.pdf');
+    expect(download.suggestedFilename()).toBe('Fiche Export Mobile PDF.pdf');
 
     const exportMeta = await page.evaluate(() => (window as typeof window & { __lastPdfExportMeta?: Record<string, number | boolean> }).__lastPdfExportMeta);
     expect(exportMeta?.forcedDesktopLayout).toBe(true);

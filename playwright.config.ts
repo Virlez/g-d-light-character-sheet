@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 const PORT = 4173;
 const baseURL = `http://127.0.0.1:${PORT}`;
+const chromiumChannel = process.env.PW_CHROMIUM_CHANNEL || (process.platform === 'win32' ? 'msedge' : 'chromium');
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -17,7 +18,7 @@ export default defineConfig({
     baseURL,
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
-    video: 'retain-on-failure',
+    video: process.env.CI ? 'retain-on-failure' : 'off',
     headless: true,
     viewport: { width: 1440, height: 1600 },
     ignoreHTTPSErrors: true,
@@ -28,7 +29,7 @@ export default defineConfig({
       name: 'chromium',
       use: {
         ...devices['Desktop Chrome'],
-        channel: 'chromium'
+        channel: chromiumChannel
       }
     },
     {
@@ -47,7 +48,7 @@ export default defineConfig({
       name: 'mobile-chrome',
       use: {
         ...devices['Pixel 5'],
-        channel: 'chromium'
+        channel: chromiumChannel
       }
     },
     {
