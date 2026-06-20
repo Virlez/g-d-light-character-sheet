@@ -575,7 +575,7 @@
             const msg = raw.toLowerCase();
 
             if (msg.includes('rate limit')) {
-                return 'Trop de tentatives. Attendez quelques minutes puis reessayez.';
+                return 'Trop de tentatives. Attendez quelques minutes puis réessayez.';
             }
 
             if (context === 'signup' && msg.includes('already registered')) {
@@ -583,7 +583,7 @@
             }
 
             if (msg.includes('invalid login credentials')) {
-                return 'Email ou mot de passe incorrect.';
+                return 'E-mail ou mot de passe incorrect.';
             }
 
             if (context === 'signup' && (msg.includes('user already') || msg.includes('already exists'))) {
@@ -674,7 +674,7 @@
             const isRecovery = mode === 'recovery';
 
             if (!email && !isRecovery) {
-                setAuthMessage('Email requis.', 'error');
+                setAuthMessage('E-mail requis.', 'error');
                 return;
             }
             if (!password) {
@@ -688,7 +688,7 @@
                     ? 'Connexion...'
                     : mode === 'register'
                         ? 'Inscription...'
-                        : 'Mise a jour...';
+                        : 'Mise à jour...';
             }
             setAuthMessage('', 'info');
 
