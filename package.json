@@ -4,6 +4,7 @@
   "private": true,
   "description": "Playwright E2E suite for the SWTOR character sheet",
   "scripts": {
+    "start": "node server.js",
     "test:e2e": "playwright test",
     "test:e2e:chromium": "playwright test --project=chromium",
     "test:e2e:firefox": "playwright test --project=firefox",
