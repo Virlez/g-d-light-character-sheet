@@ -11,7 +11,7 @@
             imgPreview.style.backgroundImage = `url(${imageData})`;
             imgPreview.classList.remove('hidden');
             imgPreview.style.backgroundSize = 'cover';
-            imgPreview.style.backgroundPosition = '50% 50%';
+            imgPreview.style.backgroundPosition = '50% 20%';
         }
 
         const container = imgInput?.closest('.char-img-placeholder');
