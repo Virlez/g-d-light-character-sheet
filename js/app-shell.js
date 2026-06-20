@@ -608,6 +608,8 @@
             const loginBtn = document.getElementById('authTabLogin');
             const registerBtn = document.getElementById('authTabRegister');
             const submitBtn = document.getElementById('authSubmitBtn');
+            const emailInput = document.getElementById('authEmail');
+            const emailField = emailInput?.closest('div');
             const passwordInput = document.getElementById('authPassword');
             const forgotBtn = document.getElementById('authForgotPasswordBtn');
             const recoveryHint = document.getElementById('authRecoveryHint');
@@ -624,6 +626,12 @@
                         ? "S'inscrire"
                         : 'Mettre a jour';
             }
+            if (emailInput) {
+                emailInput.required = !isRecovery;
+                emailInput.autocomplete = isRecovery ? 'off' : 'email';
+                if (isRecovery) emailInput.value = '';
+            }
+            if (emailField) emailField.classList.toggle('hidden', isRecovery);
             if (passwordInput) {
                 passwordInput.required = true;
                 passwordInput.autocomplete = isRecovery ? 'new-password' : isLogin ? 'current-password' : 'new-password';
@@ -687,8 +695,11 @@
             try {
                 if (isRecovery) {
                     await AppAuth.updatePassword(password);
-                    setAuthMessage('Mot de passe mis a jour. Vous pouvez maintenant vous connecter.', 'info');
+                    await AppAuth.signOut();
+                    window.__currentSession = null;
+                    showAuthView();
                     setAuthMode('login');
+                    setAuthMessage('Mot de passe mis a jour. Vous pouvez maintenant vous connecter.', 'info');
                 } else if (isLogin) {
                     await AppAuth.signIn(email, password);
                 } else {
