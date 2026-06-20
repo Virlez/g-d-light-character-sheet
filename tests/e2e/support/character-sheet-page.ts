@@ -144,13 +144,21 @@ export class CharacterSheetPage {
     await dialogHandled;
   }
 
+  async openFabMenu(): Promise<void> {
+    await this.page.getByTestId('fab-toggle').click();
+    // Wait for FAB items to become interactive (CSS transition: 0.15s)
+    await this.page.getByTestId('export-json-button').waitFor({ state: 'visible' });
+  }
+
   async exportJson(): Promise<Download> {
+    await this.openFabMenu();
     const downloadPromise = this.page.waitForEvent('download');
     await this.page.getByTestId('export-json-button').click();
     return downloadPromise;
   }
 
   async exportPdf(): Promise<Download> {
+    await this.openFabMenu();
     const downloadPromise = this.page.waitForEvent('download');
     await this.page.getByTestId('export-pdf-button').click();
     return downloadPromise;

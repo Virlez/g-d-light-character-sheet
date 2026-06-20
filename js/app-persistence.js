@@ -183,11 +183,77 @@
         else options.computeDerivedStats();
     }
 
+    function applySheetData(data, options) {
+        clearFormControls();
+        options.resetImage();
+        applyImportedFields(data);
+        applyImportedWeapons(data, options.renderWeapon);
+        const nextImageData = applyImportedImage(data, options);
+
+        try {
+            if (typeof options.updateInvPA === 'function') options.updateInvPA();
+            else options.computeDerivedStats();
+        } catch (error) {
+            options.computeDerivedStats();
+        }
+
+        document.querySelectorAll('textarea').forEach((textarea) => options.autoExpandTextarea(textarea));
+
+        return { currentImageData: nextImageData };
+    }
+
+    const LS_KEY = 'swtor_sheets';
+
+    function lsGetAll() {
+        try { return JSON.parse(localStorage.getItem(LS_KEY) || '{}'); }
+        catch (e) { return {}; }
+    }
+
+    function saveSheetToLocalStorage(data, existingId) {
+        const sheets = lsGetAll();
+        const id = (existingId && sheets[existingId]) ? existingId : 'sheet_' + Date.now();
+        sheets[id] = {
+            id,
+            name: data.char_name || 'Sans nom',
+            savedAt: new Date().toISOString(),
+            data
+        };
+        localStorage.setItem(LS_KEY, JSON.stringify(sheets));
+        return id;
+    }
+
+    function loadSheetFromLocalStorage(id) {
+        const sheets = lsGetAll();
+        return sheets[id] || null;
+    }
+
+    function deleteSheetFromLocalStorage(id) {
+        const sheets = lsGetAll();
+        delete sheets[id];
+        localStorage.setItem(LS_KEY, JSON.stringify(sheets));
+    }
+
+    function listSheetsFromLocalStorage() {
+        return Object.values(lsGetAll())
+            .map(entry => ({
+                id: entry.id,
+                name: entry.name,
+                savedAt: entry.savedAt,
+                imageData: (entry.data && entry.data.char_image_data) || null
+            }))
+            .sort((a, b) => b.savedAt.localeCompare(a.savedAt));
+    }
+
     global.CharacterSheetPersistence = {
         readFileAsText,
         collectExportData,
         triggerJsonDownload,
         importJsonFile,
-        resetSheetState
+        resetSheetState,
+        applySheetData,
+        saveSheetToLocalStorage,
+        loadSheetFromLocalStorage,
+        deleteSheetFromLocalStorage,
+        listSheetsFromLocalStorage
     };
 })(window);

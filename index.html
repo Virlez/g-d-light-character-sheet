@@ -37,6 +37,36 @@
 
     <div class="scanline fixed top-0 left-0 w-full h-screen pointer-events-none"></div>
 
+    <!-- ═══ HOME VIEW ═══ -->
+    <div id="homeView" class="w-full max-w-5xl relative z-10 hidden py-6">
+        <header class="text-center mb-10 border-b-2 border-[#004e53] pb-6">
+            <h1 class="text-4xl md:text-5xl text-[#00f0ff] drop-shadow-[0_0_10px_rgba(0,240,255,0.6)] font-bold uppercase tracking-widest">Datapad Personnel</h1>
+            <p class="text-sm tracking-widest text-gray-400 mt-2">SYSTÈME ARCHIVES // SWTOR</p>
+        </header>
+        <div id="homeSheetList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 min-h-[160px]">
+        </div>
+        <div class="flex flex-wrap justify-center gap-4 pt-4 border-t border-[#004e53]">
+            <button onclick="newSheet()"
+                    class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-8 py-3 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-base border border-[#00f0ff]">
+                + Nouvelle Fiche
+            </button>
+            <button onclick="document.getElementById('homeImportFile').click()"
+                    class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-6 py-3 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-base border border-[#004e53]">
+                Importer (JSON)
+            </button>
+            <input type="file" id="homeImportFile" accept=".json" class="hidden" onchange="importJSONFromHome(this)">
+        </div>
+    </div>
+
+    <!-- ═══ SHEET VIEW ═══ -->
+    <div id="sheetView" class="w-full max-w-5xl relative z-10 hidden">
+        <div class="no-print py-2 mb-1">
+            <button onclick="showHomeView()"
+                    class="text-[#00f0ff] hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-colors opacity-60 hover:opacity-100">
+                &#x2190; Mes fiches
+            </button>
+        </div>
+
     <div id="sheetRoot" data-testid="sheet-root" class="w-full max-w-5xl relative z-10">
         
         <header class="flex flex-col md:flex-row justify-between items-end mb-6 border-b-2 border-[#004e53] pb-4">
@@ -216,7 +246,7 @@
 
             <div class="space-y-4">
                 
-                <div data-testid="photo-card" class="section-box p-1 h-48 char-img-placeholder clip-corner relative group">
+                <div data-testid="photo-card" class="section-box p-1 h-64 char-img-placeholder clip-corner relative group">
                     <!-- Hidden file input; label will trigger it for better cross-browser reliability -->
                     <input type="file" id="imgUpload" data-testid="photo-upload-input" accept="image/*" class="hidden">
                     <div id="imgPreview" data-testid="photo-preview" class="w-full h-full bg-cover bg-center absolute inset-0 z-10 hidden" aria-hidden="true"></div>
@@ -377,35 +407,125 @@
             </section>
         </div>
 
-        <div class="mt-6 flex flex-wrap justify-center gap-4 border-t border-[#004e53] pt-4 no-print">
-            <button data-testid="export-json-button" onclick="exportJSON()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm">
-                Sauvegarder (JSON)
-            </button>
-            
-            <button data-testid="import-json-button" onclick="document.getElementById('importFile').click()" class="bg-[#002e33] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm">
-                Charger (JSON)
-            </button>
-            <input type="file" id="importFile" data-testid="import-json-input" accept=".json" class="hidden" onchange="importJSON(this)">
+        <input type="file" id="importFile" data-testid="import-json-input" accept=".json" class="hidden" onchange="importJSON(this)">
+        <p class="text-center text-sm text-gray-600 mt-4 mb-4">© SWTOR RPG System Fan Sheet</p>
 
-            <button data-testid="reset-sheet-button" onclick="resetSheet()" class="bg-[#002e33] hover:bg-red-900 hover:text-red-500 text-[#00f0ff] px-4 py-2 rounded clip-corner transition-colors uppercase font-bold text-sm border border-transparent hover:border-red-500">
-                Réinitialiser
-            </button>
-
-            <button id="screenshotPdfBtn" data-testid="export-pdf-button" onclick="exportScreenshotPDF()" class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-6 py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-base">
-                Exporter en PDF
-            </button>
-
-            <button id="screenshotJpegBtn" data-testid="export-jpeg-button" onclick="exportScreenshotJPEG()" class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-6 py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-base">
-                Exporter en Image
-            </button>
-        </div>
-        <p class="text-center text-sm text-gray-600 mt-2 mb-4">© SWTOR RPG System Fan Sheet</p>
-
-    </div>
+    </div><!-- /#sheetRoot -->
+    </div><!-- /#sheetView -->
 
     <!-- Third-party libraries used for screenshot -> PDF export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js" crossorigin="anonymous"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js" crossorigin="anonymous"></script>
+
+    <!-- FAB Speed Dial -->
+    <style>
+        #fabItems { transition: opacity 0.15s ease, transform 0.15s ease; }
+        #fabItems.fab-open { opacity: 1; transform: translateY(0); pointer-events: auto; }
+        #fabItems.fab-closed { opacity: 0; transform: translateY(8px); pointer-events: none; }
+        .fab-label {
+            opacity: 0;
+            transform: translateX(6px);
+            transition: opacity 0.1s ease, transform 0.1s ease;
+            pointer-events: none;
+        }
+        .fab-item:hover .fab-label,
+        .fab-item:focus-within .fab-label { opacity: 1; transform: translateX(0); pointer-events: auto; }
+    </style>
+
+    <div id="fabMenu" class="fixed bottom-6 right-6 z-40 no-print flex flex-col items-end gap-2">
+
+        <!-- Action items (visible when open) -->
+        <div id="fabItems" class="fab-closed flex flex-col items-end gap-2">
+
+            <!-- Réinitialiser -->
+            <div class="fab-item flex items-center gap-2">
+                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-red-800 text-red-400 px-3 py-1 rounded whitespace-nowrap">Réinitialiser</span>
+                <button data-testid="reset-sheet-button" onclick="resetSheet()" title="Réinitialiser"
+                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-red-900 text-red-500 hover:bg-red-900 hover:text-red-300 flex items-center justify-center shadow-lg transition-colors text-base">
+                    &#x21BA;
+                </button>
+            </div>
+
+            <div class="w-8 h-px bg-[#004e53] mr-1"></div>
+
+            <!-- Exporter Image -->
+            <div class="fab-item flex items-center gap-2">
+                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Exporter Image</span>
+                <button id="screenshotJpegBtn" data-testid="export-jpeg-button" onclick="exportScreenshotJPEG()" title="Exporter en Image"
+                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
+                    &#x1F5BC;
+                </button>
+            </div>
+
+            <!-- Exporter PDF -->
+            <div class="fab-item flex items-center gap-2">
+                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Exporter PDF</span>
+                <button id="screenshotPdfBtn" data-testid="export-pdf-button" onclick="exportScreenshotPDF()" title="Exporter en PDF"
+                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
+                    &#x1F4C4;
+                </button>
+            </div>
+
+            <div class="w-8 h-px bg-[#004e53] mr-1"></div>
+
+            <!-- Charger JSON -->
+            <div class="fab-item flex items-center gap-2">
+                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Charger (JSON)</span>
+                <button data-testid="import-json-button" onclick="document.getElementById('importFile').click()" title="Charger JSON"
+                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-lg font-bold">
+                    &#x2191;
+                </button>
+            </div>
+
+            <!-- Sauvegarder JSON -->
+            <div class="fab-item flex items-center gap-2">
+                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Sauvegarder (JSON)</span>
+                <button data-testid="export-json-button" onclick="exportJSON()" title="Sauvegarder JSON"
+                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-lg font-bold">
+                    &#x2193;
+                </button>
+            </div>
+
+            <div class="w-8 h-px bg-[#004e53] mr-1"></div>
+
+            <!-- Mes fiches -->
+            <div class="fab-item flex items-center gap-2">
+                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Mes fiches</span>
+                <button data-testid="open-storage-panel-button" onclick="showHomeView()" title="Mes fiches"
+                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
+                    &#x1F4C2;
+                </button>
+            </div>
+
+            <!-- Sauvegarder localement -->
+            <div class="fab-item flex items-center gap-2">
+                <span class="fab-label text-xs uppercase font-bold bg-[#001a1f] border border-[#004e53] text-[#00f0ff] px-3 py-1 rounded whitespace-nowrap">Sauvegarder localement</span>
+                <button data-testid="save-local-button" onclick="saveSheetLocally()" title="Sauvegarder localement"
+                        class="w-10 h-10 rounded-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-lg transition-colors text-base">
+                    &#x1F4BE;
+                </button>
+            </div>
+
+        </div>
+
+        <!-- Main FAB toggle -->
+        <button id="fabToggle" data-testid="fab-toggle" onclick="toggleFabMenu()" title="Menu"
+                class="w-14 h-14 rounded-full bg-[#001a1f] border-2 border-[#00f0ff] text-[#00f0ff] hover:bg-[#00f0ff] hover:text-black flex items-center justify-center shadow-xl transition-all duration-200 text-2xl font-bold">
+            &#9776;
+        </button>
+    </div>
+
+    <!-- Local Storage Sheets Panel -->
+    <div id="localStoragePanel" class="fixed inset-0 bg-black/80 z-50 flex items-center justify-center hidden no-print">
+        <div class="bg-[#001a1f] border border-[#004e53] rounded-lg p-6 w-full max-w-lg mx-4 max-h-[80vh] flex flex-col gap-4">
+            <div class="flex justify-between items-center border-b border-[#004e53] pb-3">
+                <h2 class="text-[#00f0ff] font-bold uppercase tracking-widest text-lg">Mes Fiches</h2>
+                <button onclick="closeStoragePanel()" class="text-gray-400 hover:text-white text-xl leading-none font-bold">&#x2715;</button>
+            </div>
+            <div id="localStorageList" class="overflow-y-auto flex flex-col gap-3 min-h-[60px]">
+            </div>
+        </div>
+    </div>
 
     <script>
         // Load app script with cache-busting query so updates appear reliably
