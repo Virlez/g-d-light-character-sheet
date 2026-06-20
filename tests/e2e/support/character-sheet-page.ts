@@ -4,7 +4,7 @@ export class CharacterSheetPage {
   constructor(private readonly page: Page) {}
 
   async goto(): Promise<void> {
-    await this.page.goto('/');
+    await this.page.goto('/?noauth=1');
     await expect(this.page.getByTestId('sheet-root')).toBeVisible();
   }
 

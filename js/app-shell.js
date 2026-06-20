@@ -5,6 +5,8 @@
     const AppImage = global.CharacterSheetImage;
     const AppPdf = global.CharacterSheetPdf;
     const AppStats = global.CharacterSheetStats;
+    const AppAuth = global.CharacterSheetAuth;
+    const AppCloud = global.CharacterSheetCloud;
 
     function createCharacterSheetApp() {
         const imgInput = document.getElementById('imgUpload');
@@ -171,14 +173,20 @@
             return AppPdf.exportScreenshotJPEG();
         }
 
-        function saveSheetLocally() {
+        async function saveSheetLocally() {
             try { computeAllWeaponTotals(); } catch (error) {}
             try { computeDerivedStats(); } catch (error) {}
 
             const data = AppPersistence.collectExportData({ currentImageData, toNumber });
             const isUpdate = currentSheetId !== null;
-            currentSheetId = AppPersistence.saveSheetToLocalStorage(data, currentSheetId);
-            alert(isUpdate ? 'Fiche mise à jour !' : 'Fiche sauvegardée !');
+            try {
+                currentSheetId = isLoggedIn()
+                    ? await AppCloud.saveSheet(data, currentSheetId)
+                    : AppPersistence.saveSheetToLocalStorage(data, currentSheetId);
+                alert(isUpdate ? 'Fiche mise à jour !' : 'Fiche sauvegardée !');
+            } catch (e) {
+                alert('Erreur lors de la sauvegarde.');
+            }
         }
 
         function openStoragePanel() {
@@ -259,8 +267,20 @@
                 .replace(/"/g, '&quot;');
         }
 
+        function isLoggedIn() {
+            return !!(window.__currentSession);
+        }
+
         function showHomeView() {
+            const email = window.__currentSession && window.__currentSession.user
+                ? window.__currentSession.user.email : '';
+            const emailEl = document.getElementById('homeUserEmail');
+            const userBar = document.getElementById('homeUserBar');
+            if (emailEl) emailEl.textContent = email;
+            if (userBar) userBar.classList.toggle('hidden', !email);
+
             renderHomeView();
+            document.getElementById('authView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.remove('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
@@ -268,15 +288,28 @@
         }
 
         function showSheetView() {
+            document.getElementById('authView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.remove('hidden');
             document.getElementById('fabMenu')?.classList.remove('hidden');
         }
 
-        function renderHomeView() {
+        async function renderHomeView() {
             const list = document.getElementById('homeSheetList');
             if (!list) return;
-            const sheets = AppPersistence.listSheetsFromLocalStorage();
+
+            let sheets;
+            if (isLoggedIn()) {
+                list.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-gray-500 text-xs uppercase tracking-widest">Chargement...</p></div>';
+                try {
+                    sheets = await AppCloud.listSheets();
+                } catch (e) {
+                    list.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-red-400 text-xs uppercase tracking-widest">Erreur de chargement</p></div>';
+                    return;
+                }
+            } else {
+                sheets = AppPersistence.listSheetsFromLocalStorage();
+            }
 
             if (sheets.length === 0) {
                 list.innerHTML = `<div class="col-span-full text-center py-16">
@@ -326,7 +359,9 @@
         }
 
         async function openSheetFromHome(id) {
-            const entry = AppPersistence.loadSheetFromLocalStorage(id);
+            const entry = isLoggedIn()
+                ? await AppCloud.loadSheet(id)
+                : AppPersistence.loadSheetFromLocalStorage(id);
             if (!entry) { alert('Fiche introuvable.'); return; }
             const result = AppPersistence.applySheetData(entry.data, {
                 resetImage, renderWeapon, imgPreview, imgInput,
@@ -338,10 +373,14 @@
             showSheetView();
         }
 
-        function deleteSheetFromHome(id) {
+        async function deleteSheetFromHome(id) {
             if (!confirm('Supprimer cette fiche ?')) return;
             if (currentSheetId === id) currentSheetId = null;
-            AppPersistence.deleteSheetFromLocalStorage(id);
+            if (isLoggedIn()) {
+                await AppCloud.deleteSheet(id);
+            } else {
+                AppPersistence.deleteSheetFromLocalStorage(id);
+            }
             renderHomeView();
         }
 
@@ -353,10 +392,12 @@
                 resetImage, renderWeapon, imgPreview, imgInput,
                 ensureMoveUI, autoExpandTextarea,
                 updateInvPA: publicUpdateInvPA, computeDerivedStats
-            }).then((result) => {
+            }).then(async (result) => {
                 currentImageData = result.currentImageData;
                 const data = AppPersistence.collectExportData({ currentImageData: result.currentImageData, toNumber });
-                currentSheetId = AppPersistence.saveSheetToLocalStorage(data, null);
+                currentSheetId = isLoggedIn()
+                    ? await AppCloud.saveSheet(data, null)
+                    : AppPersistence.saveSheetToLocalStorage(data, null);
                 showSheetView();
             }).catch((error) => {
                 console.error(error);
@@ -364,6 +405,100 @@
             });
 
             inputElement.value = '';
+        }
+
+        function showAuthView() {
+            document.getElementById('authView')?.classList.remove('hidden');
+            document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('sheetView')?.classList.add('hidden');
+            document.getElementById('fabMenu')?.classList.add('hidden');
+            closeFabMenu();
+        }
+
+        function switchAuthTab(tab) {
+            const isLogin = tab === 'login';
+            const base = 'flex-1 py-2 text-sm uppercase font-bold tracking-widest -mb-px transition-colors';
+            const active = ' text-[#00f0ff] border-b-2 border-[#00f0ff]';
+            const inactive = ' text-gray-500 border-b-2 border-transparent';
+            const loginBtn = document.getElementById('authTabLogin');
+            const registerBtn = document.getElementById('authTabRegister');
+            const submitBtn = document.getElementById('authSubmitBtn');
+            if (loginBtn) loginBtn.className = base + (isLogin ? active : inactive);
+            if (registerBtn) registerBtn.className = base + (!isLogin ? active : inactive);
+            if (submitBtn) {
+                submitBtn.textContent = isLogin ? 'Se connecter' : "S'inscrire";
+                submitBtn.dataset.mode = isLogin ? 'login' : 'register';
+            }
+            const msgEl = document.getElementById('authMessage');
+            if (msgEl) msgEl.classList.add('hidden');
+        }
+
+        async function handleAuthSubmit(event) {
+            event.preventDefault();
+            const email = document.getElementById('authEmail')?.value.trim();
+            const password = document.getElementById('authPassword')?.value;
+            const submitBtn = document.getElementById('authSubmitBtn');
+            const msgEl = document.getElementById('authMessage');
+            const isLogin = submitBtn?.dataset.mode !== 'register';
+
+            if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = isLogin ? 'Connexion...' : 'Inscription...'; }
+            if (msgEl) msgEl.className = 'mt-3 text-xs hidden';
+
+            try {
+                if (isLogin) {
+                    await AppAuth.signIn(email, password);
+                } else {
+                    await AppAuth.signUp(email, password);
+                    if (msgEl) {
+                        msgEl.textContent = 'Compte créé ! Vérifiez vos emails pour confirmer votre inscription.';
+                        msgEl.className = 'mt-3 text-xs text-[#00f0ff]';
+                    }
+                }
+            } catch (error) {
+                if (msgEl) {
+                    msgEl.textContent = error.message || 'Une erreur est survenue.';
+                    msgEl.className = 'mt-3 text-xs text-red-400';
+                }
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = isLogin ? 'Se connecter' : "S'inscrire";
+                }
+            }
+        }
+
+        function continueWithoutAccount() {
+            window.__currentSession = null;
+            if (AppPersistence.listSheetsFromLocalStorage().length > 0) {
+                showHomeView();
+            } else {
+                showSheetView();
+            }
+        }
+
+        async function handleLogout() {
+            await AppAuth.signOut();
+            // onAuthStateChange will fire SIGNED_OUT -> showAuthView()
+        }
+
+        async function handlePostSignIn() {
+            const localSheets = (() => {
+                try { return Object.values(JSON.parse(localStorage.getItem('swtor_sheets') || '{}')); }
+                catch (e) { return []; }
+            })();
+
+            if (localSheets.length > 0) {
+                if (confirm(`Vous avez ${localSheets.length} fiche(s) sauvegardée(s) localement.\nLes importer dans le cloud ?`)) {
+                    try {
+                        const count = await AppCloud.migrateFromLocalStorage();
+                        alert(`${count} fiche(s) importée(s) avec succès !`);
+                    } catch (e) {
+                        console.error('[migration]', e);
+                        alert('Erreur lors de la migration :\n' + (e.message || e));
+                    }
+                }
+            }
+            showHomeView();
         }
 
         function toggleFabMenu() {
@@ -393,12 +528,38 @@
         initTextareas();
         bindImageFeature();
 
-        // Show home screen if sheets exist, otherwise go directly to new sheet
-        if (AppPersistence.listSheetsFromLocalStorage().length > 0) {
-            showHomeView();
-        } else {
-            showSheetView();
-        }
+        // Initialise auth + routing
+        (async function () {
+            window.__currentSession = null;
+            const noAuth = new URLSearchParams(location.search).has('noauth');
+
+            if (noAuth || !AppAuth.isConfigured()) {
+                // No Supabase configured, or test bypass — use localStorage only
+                if (AppPersistence.listSheetsFromLocalStorage().length > 0) {
+                    showHomeView();
+                } else {
+                    showSheetView();
+                }
+                return;
+            }
+
+            const session = await AppAuth.getSession();
+            window.__currentSession = session;
+            if (session) {
+                showHomeView();
+            } else {
+                showAuthView();
+            }
+
+            AppAuth.onAuthStateChange(async (event, sess) => {
+                window.__currentSession = sess;
+                if (event === 'SIGNED_IN') {
+                    await handlePostSignIn();
+                } else if (event === 'SIGNED_OUT') {
+                    showAuthView();
+                }
+            });
+        })();
 
         return {
             autoExpandTextarea,
@@ -427,6 +588,7 @@
             renderStorageList,
             loadSheetFromStorage,
             deleteSheetFromStorage,
+            showAuthView,
             showHomeView,
             showSheetView,
             renderHomeView,
@@ -434,6 +596,11 @@
             openSheetFromHome,
             deleteSheetFromHome,
             importJSONFromHome,
+            switchAuthTab,
+            handleAuthSubmit,
+            continueWithoutAccount,
+            handleLogout,
+            handlePostSignIn,
             toggleFabMenu,
             closeFabMenu
         };
