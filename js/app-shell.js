@@ -545,15 +545,15 @@
                 parsedStatus >= 500 ||
                 directStatus >= 500
             ) {
-                return 'Service d\'authentification temporairement indisponible. Reessayez dans quelques instants.';
+                return 'Service d\'authentification temporairement indisponible. Réessayez dans quelques instants.';
             }
 
             if (directCode === 'email_not_confirmed' || parsedCode === 'email_not_confirmed') {
-                return 'Email non confirme. Verifiez votre boite mail puis confirmez votre compte.';
+                return 'E-mail non confirmé. Vérifiez votre boîte mail puis confirmez votre compte.';
             }
 
             if (directCode === 'user_not_found' || parsedCode === 'user_not_found') {
-                return 'Aucun compte trouve pour cet email.';
+                return 'Aucun compte trouvé pour cet e-mail.';
             }
 
             if (
@@ -561,7 +561,7 @@
                 (directStatus === 400 || parsedStatus === 400) &&
                 (parsedMessage === '{}' || parsedMessage === '' || directName.includes('authapierror') || parsedName.includes('authapierror'))
             ) {
-                return 'Connexion impossible. Verifiez vos identifiants et confirmez votre email de creation de compte.';
+                return 'Connexion impossible. Vérifiez vos identifiants et confirmez votre e-mail de création de compte.';
             }
 
             if (parsedMessage === '{}' || parsedMessage === '') {
@@ -579,7 +579,7 @@
             }
 
             if (context === 'signup' && msg.includes('already registered')) {
-                return 'Cet email est deja inscrit. Connectez-vous ou utilisez "Mot de passe oublie ?".';
+                return 'Cet e-mail est déjà inscrit. Connectez-vous ou utilisez "Mot de passe oublié ?".';
             }
 
             if (msg.includes('invalid login credentials')) {
@@ -587,7 +587,7 @@
             }
 
             if (context === 'signup' && (msg.includes('user already') || msg.includes('already exists'))) {
-                return 'Cet email est deja inscrit. Connectez-vous ou utilisez "Mot de passe oublie ?".';
+                return 'Cet e-mail est déjà inscrit. Connectez-vous ou utilisez "Mot de passe oublié ?".';
             }
 
             if (msg.includes('password should be at least')) {
@@ -624,7 +624,7 @@
                     ? 'Se connecter'
                     : isRegister
                         ? "S'inscrire"
-                        : 'Mettre a jour';
+                        : 'Mettre à jour';
             }
             if (emailInput) {
                 emailInput.required = !isRecovery;
@@ -650,13 +650,13 @@
         async function handleForgotPassword() {
             const email = document.getElementById('authEmail')?.value.trim();
             if (!email) {
-                setAuthMessage('Saisissez votre email pour recevoir un lien de reinitialisation.', 'error');
+                setAuthMessage('Saisissez votre e-mail pour recevoir un lien de réinitialisation.', 'error');
                 return;
             }
 
             try {
                 await AppAuth.resetPassword(email);
-                setAuthMessage('Email de reinitialisation envoye. Verifiez votre boite mail.', 'info');
+                setAuthMessage('E-mail de réinitialisation envoyé. Vérifiez votre boîte mail.', 'info');
             } catch (error) {
                 console.error('[auth:forgot]', error);
                 const message = formatAuthError(error, 'forgot');
@@ -699,12 +699,12 @@
                     window.__currentSession = null;
                     showAuthView();
                     setAuthMode('login');
-                    setAuthMessage('Mot de passe mis a jour. Vous pouvez maintenant vous connecter.', 'info');
+                    setAuthMessage('Mot de passe mis à jour. Vous pouvez maintenant vous connecter.', 'info');
                 } else if (isLogin) {
                     await AppAuth.signIn(email, password);
                 } else {
                     await AppAuth.signUp(email, password);
-                    setAuthMessage('Compte cree ! Verifiez vos emails pour confirmer votre inscription.', 'info');
+                    setAuthMessage('Compte créé ! Vérifiez vos e-mails pour confirmer votre inscription.', 'info');
                 }
             } catch (error) {
                 console.error('[auth:submit]', error);
@@ -716,7 +716,7 @@
                         ? 'Se connecter'
                         : mode === 'register'
                             ? "S'inscrire"
-                            : 'Mettre a jour';
+                            : 'Mettre à jour';
                 }
             }
         }
@@ -819,7 +819,7 @@
             if (recoveryRedirect) {
                 showAuthView();
                 setAuthMode('recovery');
-                setAuthMessage('Choisissez un nouveau mot de passe pour terminer la recuperation.', 'info');
+                setAuthMessage('Choisissez un nouveau mot de passe pour terminer la récupération.', 'info');
             }
 
             if (!recoveryRedirect && session) {
@@ -833,7 +833,7 @@
                 if (event === 'PASSWORD_RECOVERY') {
                     showAuthView();
                     setAuthMode('recovery');
-                    setAuthMessage('Choisissez un nouveau mot de passe pour terminer la recuperation.', 'info');
+                    setAuthMessage('Choisissez un nouveau mot de passe pour terminer la récupération.', 'info');
                 } else if (event === 'SIGNED_IN') {
                     await handlePostSignIn();
                 } else if (event === 'SIGNED_OUT') {
