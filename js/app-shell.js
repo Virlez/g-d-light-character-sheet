@@ -586,27 +586,10 @@
             };
 
             const formatWeakPasswordReason = () => {
-                const reasons = [];
-                if (
-                    detailText.includes('at least') ||
-                    detailText.includes('minimum') ||
-                    detailText.includes('too short') ||
-                    detailText.includes('length')
-                ) {
-                    const lengthMatch = detailText.match(/(?:at least|minimum(?: of)?)\s+(\d+)\s+characters?/);
-                    reasons.push(lengthMatch
-                        ? `au moins ${lengthMatch[1]} caractères`
-                        : 'un mot de passe plus long');
-                }
-                if (detailText.includes('lower')) reasons.push('une minuscule');
-                if (detailText.includes('upper') || detailText.includes('capital')) reasons.push('une majuscule');
-                if (detailText.includes('digit') || detailText.includes('number')) reasons.push('un chiffre');
-                if (detailText.includes('symbol') || detailText.includes('special')) reasons.push('un caractère spécial');
                 if (detailText.includes('pwned') || detailText.includes('breach') || detailText.includes('compromised')) {
-                    reasons.push('un mot de passe qui n\'apparaît pas dans une fuite connue');
+                    return 'Mot de passe refusé : il apparaît dans une fuite connue. Utilisez au moins 8 caractères avec une majuscule, une minuscule, un chiffre et un caractère spécial.';
                 }
-                if (!reasons.length) return 'Le mot de passe ne respecte pas la politique de sécurité.';
-                return `Mot de passe refusé : il doit contenir ${reasons.join(', ')}.`;
+                return 'Mot de passe refusé : il faut au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.';
             };
 
             if (
@@ -679,10 +662,7 @@
             }
 
             if (msg.includes('password should be at least')) {
-                const lengthMatch = msg.match(/at least\s+(\d+)\s+characters?/);
-                return lengthMatch
-                    ? `Le mot de passe est trop court : ${lengthMatch[1]} caractères minimum.`
-                    : 'Le mot de passe est trop court.';
+                return 'Mot de passe refusé : il faut au moins 8 caractères, une majuscule, une minuscule, un chiffre et un caractère spécial.';
             }
 
             return raw;
