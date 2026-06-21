@@ -538,6 +538,76 @@
             const parsedCode = String(parsed?.code || '').toLowerCase();
             const parsedMessage = String(parsed?.message || '').toLowerCase();
             const parsedStatus = Number(parsed?.status || 0);
+            const code = directCode || parsedCode;
+            const status = directStatus || parsedStatus;
+
+            const collectValues = (value, values = []) => {
+                if (!value) return values;
+                if (typeof value === 'string') {
+                    values.push(value);
+                    return values;
+                }
+                if (Array.isArray(value)) {
+                    value.forEach((item) => collectValues(item, values));
+                    return values;
+                }
+                if (typeof value === 'object') {
+                    Object.values(value).forEach((item) => collectValues(item, values));
+                }
+                return values;
+            };
+
+            const detailText = collectValues([
+                raw,
+                error?.message,
+                error?.error_description,
+                error?.details,
+                error?.hint,
+                error?.weak_password,
+                error?.weakPassword,
+                parsed?.message,
+                parsed?.error_description,
+                parsed?.details,
+                parsed?.hint,
+                parsed?.weak_password,
+                parsed?.weakPassword
+            ]).join(' ').toLowerCase();
+
+            const signupMessagesByCode = {
+                email_exists: 'Cet e-mail est déjà inscrit. Connectez-vous ou utilisez "Mot de passe oublié ?".',
+                user_already_exists: 'Cet e-mail est déjà inscrit. Connectez-vous ou utilisez "Mot de passe oublié ?".',
+                identity_already_exists: 'Cet e-mail est déjà lié à un compte existant.',
+                email_address_invalid: 'Adresse e-mail invalide. Vérifiez le format, par exemple nom@domaine.fr.',
+                email_address_not_authorized: 'Cette adresse e-mail n\'est pas autorisée pour l\'inscription.',
+                signup_disabled: 'Les inscriptions sont désactivées pour le moment.',
+                over_email_send_rate_limit: 'Trop d\'e-mails envoyés. Attendez quelques minutes puis réessayez.',
+                over_request_rate_limit: 'Trop de tentatives. Attendez quelques minutes puis réessayez.',
+                captcha_failed: 'La vérification anti-robot a échoué.'
+            };
+
+            const formatWeakPasswordReason = () => {
+                const reasons = [];
+                if (
+                    detailText.includes('at least') ||
+                    detailText.includes('minimum') ||
+                    detailText.includes('too short') ||
+                    detailText.includes('length')
+                ) {
+                    const lengthMatch = detailText.match(/(?:at least|minimum(?: of)?)\s+(\d+)\s+characters?/);
+                    reasons.push(lengthMatch
+                        ? `au moins ${lengthMatch[1]} caractères`
+                        : 'un mot de passe plus long');
+                }
+                if (detailText.includes('lower')) reasons.push('une minuscule');
+                if (detailText.includes('upper') || detailText.includes('capital')) reasons.push('une majuscule');
+                if (detailText.includes('digit') || detailText.includes('number')) reasons.push('un chiffre');
+                if (detailText.includes('symbol') || detailText.includes('special')) reasons.push('un caractère spécial');
+                if (detailText.includes('pwned') || detailText.includes('breach') || detailText.includes('compromised')) {
+                    reasons.push('un mot de passe qui n\'apparaît pas dans une fuite connue');
+                }
+                if (!reasons.length) return 'Le mot de passe ne respecte pas la politique de sécurité.';
+                return `Mot de passe refusé : il doit contenir ${reasons.join(', ')}.`;
+            };
 
             if (
                 parsedName.includes('authretryablefetcherror') ||
@@ -564,7 +634,7 @@
                 return 'Connexion impossible. Vérifiez vos identifiants et confirmez votre e-mail de création de compte.';
             }
 
-            if (parsedMessage === '{}' || parsedMessage === '') {
+            if (parsed && (parsedMessage === '{}' || parsedMessage === '')) {
                 raw = 'Erreur du service d\'authentification.';
             }
 
@@ -578,20 +648,41 @@
                 return 'Trop de tentatives. Attendez quelques minutes puis réessayez.';
             }
 
-            if (context === 'signup' && msg.includes('already registered')) {
-                return 'Cet e-mail est déjà inscrit. Connectez-vous ou utilisez "Mot de passe oublié ?".';
+            if (context === 'signup') {
+                if (code === 'weak_password' || detailText.includes('weak password') || detailText.includes('password should')) {
+                    return formatWeakPasswordReason();
+                }
+
+                if (signupMessagesByCode[code]) {
+                    return signupMessagesByCode[code];
+                }
+
+                if (status === 422 && (detailText.includes('email') || detailText.includes('mail'))) {
+                    return 'Adresse e-mail invalide. Vérifiez le format, par exemple nom@domaine.fr.';
+                }
+
+                if (detailText.includes('already registered') || detailText.includes('user already') || detailText.includes('already exists')) {
+                    return 'Cet e-mail est déjà inscrit. Connectez-vous ou utilisez "Mot de passe oublié ?".';
+                }
+
+                if (detailText.includes('invalid email') || detailText.includes('validate email') || detailText.includes('email address')) {
+                    return 'Adresse e-mail invalide. Vérifiez le format, par exemple nom@domaine.fr.';
+                }
+
+                if (detailText.includes('signup') && detailText.includes('disabled')) {
+                    return 'Les inscriptions sont désactivées pour le moment.';
+                }
             }
 
             if (msg.includes('invalid login credentials')) {
                 return 'E-mail ou mot de passe incorrect.';
             }
 
-            if (context === 'signup' && (msg.includes('user already') || msg.includes('already exists'))) {
-                return 'Cet e-mail est déjà inscrit. Connectez-vous ou utilisez "Mot de passe oublié ?".';
-            }
-
             if (msg.includes('password should be at least')) {
-                return 'Le mot de passe est trop court.';
+                const lengthMatch = msg.match(/at least\s+(\d+)\s+characters?/);
+                return lengthMatch
+                    ? `Le mot de passe est trop court : ${lengthMatch[1]} caractères minimum.`
+                    : 'Le mot de passe est trop court.';
             }
 
             return raw;
