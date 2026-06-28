@@ -356,7 +356,9 @@ test.describe('Auth profiles and roles', () => {
         .filter((entry: any) => entry.table === 'sheets')
         .map((entry: any) => entry.columns);
     });
-    expect(sheetListSelects).toContain('id, name, saved_at, image_data, user_id, guild_id');
+    expect(sheetListSelects).toContain('id, name, saved_at, user_id, guild_id');
+    expect(sheetListSelects).toContain('image_data');
+    expect(sheetListSelects).not.toContain('id, name, saved_at, image_data, user_id, guild_id');
     expect(sheetListSelects).not.toContain('id, name, saved_at, data, user_id, guild_id');
 
     await page.getByText('Ouvrir').click();

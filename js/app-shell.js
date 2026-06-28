@@ -19,6 +19,7 @@
         let currentProfile = null;
         let adminPanelTab = 'users';
         let homeSheetTab = 'all';
+        const sheetImageCache = new Map();
         let pendingUnguildedGuildAssignments = {};
         const adminSheetsPageSize = 50;
         let adminSheetsFilters = { guildId: '', ownerId: '', search: '' };
@@ -467,7 +468,11 @@
                     if (currentProfile?.role === 'mj') {
                         sheets = sheets.filter(sheet => sheet.guildId && sheet.guildId === currentProfile.mjGuildId);
                     }
-                    if (isPrivilegedRole()) {
+                    const needsOwnerProfiles = (
+                        (currentProfile?.role === 'admin' && homeSheetTab === 'unguilded') ||
+                        (currentProfile?.role === 'mj' && homeSheetTab === 'players')
+                    );
+                    if (needsOwnerProfiles) {
                         const profiles = await AppCloud.listProfiles();
                         profilesById = Object.fromEntries(profiles.map(profile => [profile.id, profile]));
                     }
@@ -603,6 +608,50 @@
             </div>`;
         }
 
+        async function loadSheetCardImage(placeholder) {
+            const sheetId = placeholder?.dataset?.sheetImageId;
+            if (!sheetId || !isLoggedIn()) return;
+
+            try {
+                let imageData;
+                if (sheetImageCache.has(sheetId)) {
+                    imageData = await sheetImageCache.get(sheetId);
+                } else {
+                    const imagePromise = AppCloud.getSheetImage(sheetId);
+                    sheetImageCache.set(sheetId, imagePromise);
+                    imageData = await imagePromise;
+                }
+
+                if (!imageData || !imageData.startsWith('data:image/')) return;
+                placeholder.className = 'w-full h-full';
+                placeholder.innerHTML = `<img src="${imageData}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`;
+                placeholder.removeAttribute('data-sheet-image-id');
+            } catch (error) {
+                console.error('[sheet:image]', error);
+            }
+        }
+
+        function hydrateSheetCardImages(list) {
+            if (!isLoggedIn()) return;
+            const placeholders = Array.from(list.querySelectorAll('[data-sheet-image-id]'));
+            if (placeholders.length === 0) return;
+
+            if (!('IntersectionObserver' in window)) {
+                placeholders.slice(0, 6).forEach(loadSheetCardImage);
+                return;
+            }
+
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach((entry) => {
+                    if (!entry.isIntersecting) return;
+                    observer.unobserve(entry.target);
+                    loadSheetCardImage(entry.target);
+                });
+            }, { rootMargin: '300px 0px' });
+
+            placeholders.forEach((placeholder) => observer.observe(placeholder));
+        }
+
         function renderSheetCards(list, sheets, profilesById) {
             list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 min-h-[160px]';
             list.innerHTML = sheets.map(sheet => {
@@ -626,7 +675,7 @@
                 const safeSrc = sheet.imageData && sheet.imageData.startsWith('data:image/') ? sheet.imageData : null;
                 const imgHtml = safeSrc
                     ? `<img src="${safeSrc}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`
-                    : `<div class="w-full h-full flex items-center justify-center text-5xl opacity-10">&#9632;</div>`;
+                    : `<div class="w-full h-full flex items-center justify-center text-5xl opacity-10" ${isLoggedIn() ? `data-sheet-image-id="${sheet.id}"` : ''}>&#9632;</div>`;
                 return `<div class="bg-[#001a1f] border border-[#004e53] rounded-lg overflow-hidden hover:border-[#00f0ff] transition-colors">
                     <div class="h-52 bg-[#002e33] overflow-hidden cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">${imgHtml}</div>
                     <div class="p-3 cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">
@@ -644,6 +693,7 @@
                     </div>
                 </div>`;
             }).join('');
+            hydrateSheetCardImages(list);
         }
 
         function renderUnguildedSheetRows(list, sheets, profilesById) {

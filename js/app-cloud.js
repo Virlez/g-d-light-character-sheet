@@ -61,13 +61,25 @@
         if (!client) return [];
         let query = client
             .from('sheets')
-            .select('id, name, saved_at, image_data, user_id, guild_id')
+            .select('id, name, saved_at, user_id, guild_id')
             .order('saved_at', { ascending: false });
         if (filters.ownerId) query = query.eq('user_id', filters.ownerId);
         if (filters.guildId) query = query.eq('guild_id', filters.guildId);
         const { data, error } = await query;
         if (error) throw error;
         return (data || []).map(mapSheetRow);
+    }
+
+    async function getSheetImage(sheetId) {
+        const client = getClient();
+        if (!client || !sheetId) return null;
+        const { data, error } = await client
+            .from('sheets')
+            .select('image_data')
+            .eq('id', sheetId)
+            .maybeSingle();
+        if (error) return null;
+        return data?.image_data || null;
     }
 
     async function _getUserId(client) {
@@ -246,6 +258,7 @@
 
     global.CharacterSheetCloud = {
         listSheets,
+        getSheetImage,
         saveSheet,
         loadSheet,
         deleteSheet,
