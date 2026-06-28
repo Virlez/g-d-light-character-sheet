@@ -1,6 +1,13 @@
 import { expect, test } from '@playwright/test';
 import { CharacterSheetPage } from './support/character-sheet-page';
-import { legacyCharacterFixture, modernCharacterFixture, portraitFixture } from './support/test-data';
+import {
+  guildKnownCharacterFixture,
+  guildTypoCharacterFixture,
+  guildUnknownCharacterFixture,
+  legacyCharacterFixture,
+  modernCharacterFixture,
+  portraitFixture
+} from './support/test-data';
 
 test.describe('Character sheet - persistence flows', () => {
   test('exports the current sheet as JSON with a character-based filename', async ({ page }) => {
@@ -53,6 +60,20 @@ test.describe('Character sheet - persistence flows', () => {
     await expect(sheet.weaponRow(0).getByTestId('weapon-name')).toHaveValue('Pistolet blaster');
     await expect(sheet.weaponRow(1).getByTestId('weapon-name')).toHaveValue('Vibrolame');
     await expect(sheet.inputById('inv_pa')).toHaveValue('40');
+  });
+
+  test('normalizes guild names from imported JSON saves', async ({ page }) => {
+    const sheet = new CharacterSheetPage(page);
+
+    await sheet.goto();
+    await sheet.importJson(guildKnownCharacterFixture);
+    await expect(sheet.inputById('guild_name')).toHaveValue('Ordo Augustus');
+
+    await sheet.importJson(guildTypoCharacterFixture);
+    await expect(sheet.inputById('guild_name')).toHaveValue('Arcanum Astralis');
+
+    await sheet.importJson(guildUnknownCharacterFixture);
+    await expect(sheet.inputById('guild_name')).toHaveValue('');
   });
 
   test('resets the form to defaults after confirmation', async ({ page }) => {

@@ -66,10 +66,18 @@
         return _withAuthRetry(() => client.auth.signInWithPassword({ email, password }));
     }
 
-    async function signUp(email, password) {
+    async function signUp(email, password, pseudo) {
         const client = getClient();
         if (!client) throw new Error('Supabase non configuré');
-        return _withAuthRetry(() => client.auth.signUp({ email, password }));
+        return _withAuthRetry(() => client.auth.signUp({
+            email,
+            password,
+            options: {
+                data: {
+                    pseudo
+                }
+            }
+        }));
     }
 
     async function resetPassword(email) {

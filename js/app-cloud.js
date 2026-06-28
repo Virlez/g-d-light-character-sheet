@@ -1,6 +1,44 @@
 (function (global) {
+    const AppGuilds = global.CharacterSheetGuilds;
+
     function getClient() {
         return global.CharacterSheetAuth.getClient();
+    }
+
+    function guildIdFromData(data) {
+        return AppGuilds ? AppGuilds.idFromName(data?.guild_name) : null;
+    }
+
+    function normalizeSheetDataGuild(data) {
+        const guildId = guildIdFromData(data);
+        const guildName = guildId && AppGuilds ? AppGuilds.nameFromId(guildId) : '';
+        return {
+            data: { ...data, guild_name: guildName },
+            guildId
+        };
+    }
+
+    function mapSheetRow(row) {
+        return {
+            id: row.id,
+            name: row.name,
+            savedAt: row.saved_at,
+            ownerId: row.user_id || null,
+            guildId: row.guild_id || null,
+            guildName: row.guild_id && AppGuilds ? AppGuilds.nameFromId(row.guild_id) : '',
+            imageData: row.data && row.data.char_image_data ? row.data.char_image_data : null
+        };
+    }
+
+    function mapProfile(profile) {
+        return {
+            id: profile.id,
+            pseudo: profile.pseudo,
+            email: profile.email,
+            role: profile.role || 'user',
+            mjGuildId: profile.mj_guild_id || null,
+            mjGuildName: profile.mj_guild_id && AppGuilds ? AppGuilds.nameFromId(profile.mj_guild_id) : ''
+        };
     }
 
     async function listSheets() {
@@ -8,15 +46,10 @@
         if (!client) return [];
         const { data, error } = await client
             .from('sheets')
-            .select('id, name, saved_at, data')
+            .select('id, name, saved_at, data, user_id, guild_id')
             .order('saved_at', { ascending: false });
         if (error) throw error;
-        return (data || []).map(row => ({
-            id: row.id,
-            name: row.name,
-            savedAt: row.saved_at,
-            imageData: row.data && row.data.char_image_data ? row.data.char_image_data : null
-        }));
+        return (data || []).map(mapSheetRow);
     }
 
     async function _getUserId(client) {
@@ -26,10 +59,17 @@
 
     async function saveSheet(data, existingId) {
         const client = getClient();
-        if (!client) throw new Error('Non connecté');
+        if (!client) throw new Error('Non connecte');
         const id = existingId || 'sheet_' + Date.now();
         const user_id = await _getUserId(client);
-        const row = { id, name: data.char_name || 'Sans nom', data, saved_at: new Date().toISOString() };
+        const normalized = normalizeSheetDataGuild(data);
+        const row = {
+            id,
+            name: normalized.data.char_name || 'Sans nom',
+            data: normalized.data,
+            guild_id: normalized.guildId,
+            saved_at: new Date().toISOString()
+        };
         if (user_id) row.user_id = user_id;
         const { error } = await client.from('sheets').upsert(row);
         if (error) throw error;
@@ -45,7 +85,8 @@
             .eq('id', id)
             .single();
         if (error) return null;
-        return { id: data.id, name: data.name, savedAt: data.saved_at, data: data.data };
+        const mapped = mapSheetRow(data);
+        return { ...mapped, data: data.data };
     }
 
     async function deleteSheet(id) {
@@ -68,7 +109,14 @@
 
         const user_id = await _getUserId(client);
         const rows = entries.map(entry => {
-            const row = { id: entry.id, name: entry.name, data: entry.data, saved_at: entry.savedAt };
+            const normalized = normalizeSheetDataGuild(entry.data);
+            const row = {
+                id: entry.id,
+                name: entry.name,
+                data: normalized.data,
+                guild_id: normalized.guildId,
+                saved_at: entry.savedAt
+            };
             if (user_id) row.user_id = user_id;
             return row;
         });
@@ -80,11 +128,91 @@
         return entries.length;
     }
 
+    async function getMyProfile() {
+        const client = getClient();
+        if (!client) return null;
+        const userId = await _getUserId(client);
+        if (!userId) return null;
+
+        const { data, error } = await client
+            .from('profiles')
+            .select('id, pseudo, email, role, mj_guild_id')
+            .eq('id', userId)
+            .maybeSingle();
+        if (error) throw error;
+        return data ? mapProfile(data) : null;
+    }
+
+    async function completeProfile(pseudo) {
+        const client = getClient();
+        if (!client) throw new Error('Non connecte');
+        const { data, error } = await client.rpc('complete_profile', { new_pseudo: pseudo });
+        if (error) throw error;
+        return data;
+    }
+
+    async function listProfiles() {
+        const client = getClient();
+        if (!client) return [];
+        const { data, error } = await client
+            .from('profiles')
+            .select('id, pseudo, email, role, mj_guild_id')
+            .order('pseudo', { ascending: true, nullsFirst: false });
+        if (error) throw error;
+        return (data || []).map(mapProfile);
+    }
+
+    async function setUserRole(userId, role, mjGuildId) {
+        const client = getClient();
+        if (!client) throw new Error('Non connecte');
+        const { data, error } = await client.rpc('admin_set_user_role', {
+            target_user_id: userId,
+            new_role: role,
+            new_mj_guild_id: role === 'mj' ? mjGuildId : null
+        });
+        if (error) throw error;
+        return data;
+    }
+
+    async function listUnguildedSheets() {
+        const client = getClient();
+        if (!client) return [];
+        const { data, error } = await client
+            .from('sheets')
+            .select('id, name, saved_at, data, user_id, guild_id')
+            .is('guild_id', null)
+            .order('saved_at', { ascending: false });
+        if (error) throw error;
+        return (data || []).map(row => ({
+            id: row.id,
+            name: row.name || row.data?.char_name || 'Sans nom',
+            savedAt: row.saved_at,
+            ownerId: row.user_id || null
+        }));
+    }
+
+    async function assignSheetGuild(sheetId, guildId) {
+        const client = getClient();
+        if (!client) throw new Error('Non connecte');
+        const { data, error } = await client.rpc('admin_assign_sheet_guild', {
+            target_sheet_id: sheetId,
+            new_guild_id: guildId
+        });
+        if (error) throw error;
+        return data;
+    }
+
     global.CharacterSheetCloud = {
         listSheets,
         saveSheet,
         loadSheet,
         deleteSheet,
-        migrateFromLocalStorage
+        migrateFromLocalStorage,
+        getMyProfile,
+        completeProfile,
+        listProfiles,
+        setUserRole,
+        listUnguildedSheets,
+        assignSheetGuild
     };
 })(window);

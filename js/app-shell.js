@@ -7,12 +7,17 @@
     const AppStats = global.CharacterSheetStats;
     const AppAuth = global.CharacterSheetAuth;
     const AppCloud = global.CharacterSheetCloud;
+    const AppGuilds = global.CharacterSheetGuilds;
 
     function createCharacterSheetApp() {
         const imgInput = document.getElementById('imgUpload');
         const imgPreview = document.getElementById('imgPreview');
         let currentImageData = null;
         let currentSheetId = null;
+        let currentSheetOwnerId = null;
+        let currentSheetReadOnly = false;
+        let currentProfile = null;
+        let adminPanelTab = 'users';
         let authMode = 'login';
         let autosaveTimer = null;
         let autosaveInFlight = false;
@@ -108,6 +113,7 @@
 
         async function persistCurrentSheet(options = {}) {
             const silent = !!options.silent;
+            if (currentSheetReadOnly) return currentSheetId;
 
             try { computeAllWeaponTotals(); } catch (error) {}
             try { computeDerivedStats(); } catch (error) {}
@@ -147,6 +153,7 @@
         }
 
         function scheduleAutosave(delay = 800) {
+            if (currentSheetReadOnly) return;
             if (document.getElementById('sheetView')?.classList.contains('hidden')) return;
             if (autosaveTimer) clearTimeout(autosaveTimer);
             autosaveTimer = setTimeout(() => {
@@ -315,6 +322,8 @@
             });
             currentImageData = result.currentImageData;
             currentSheetId = id;
+            currentSheetOwnerId = null;
+            setReadOnlyMode(false);
             closeStoragePanel();
         }
 
@@ -336,16 +345,70 @@
             return !!(window.__currentSession);
         }
 
-        function showHomeView() {
-            const email = window.__currentSession && window.__currentSession.user
-                ? window.__currentSession.user.email : '';
-            const emailEl = document.getElementById('homeUserEmail');
+        function getCurrentUserId() {
+            return window.__currentSession?.user?.id || null;
+        }
+
+        function isPrivilegedRole() {
+            return currentProfile?.role === 'mj' || currentProfile?.role === 'admin';
+        }
+
+        function isAdminRole() {
+            return currentProfile?.role === 'admin';
+        }
+
+        function canEditSheet(ownerId) {
+            if (!isLoggedIn()) return true;
+            return !ownerId || ownerId === getCurrentUserId();
+        }
+
+        function setReadOnlyMode(readOnly) {
+            currentSheetReadOnly = !!readOnly;
+            const sheetRoot = document.getElementById('sheetRoot');
+            if (sheetRoot) {
+                sheetRoot.querySelectorAll('input, textarea, select, button').forEach((element) => {
+                    if (element.id === 'importFile') {
+                        element.disabled = readOnly;
+                        return;
+                    }
+                    element.disabled = readOnly;
+                });
+                sheetRoot.classList.toggle('opacity-80', readOnly);
+            }
+
+            const importAction = document.querySelector('[data-testid="import-json-button"]')?.closest('.fab-item');
+            if (importAction) importAction.classList.toggle('hidden', readOnly);
+        }
+
+        function updateCurrentUserBar() {
+            const user = window.__currentSession?.user || null;
+            const displayName = currentProfile?.pseudo || user?.email || '';
+            const role = currentProfile?.role || 'user';
+            const nameEl = document.getElementById('homeUserName');
+            const roleEl = document.getElementById('homeUserRole');
             const userBar = document.getElementById('homeUserBar');
-            if (emailEl) emailEl.textContent = email;
-            if (userBar) userBar.classList.toggle('hidden', !email);
+            const adminToggle = document.getElementById('adminPanelToggle');
+
+            if (nameEl) nameEl.textContent = displayName;
+            if (roleEl) {
+                const shouldShowRole = role === 'mj' || role === 'admin';
+                roleEl.textContent = role === 'admin'
+                    ? 'Admin'
+                    : currentProfile?.mjGuildName
+                        ? `MJ - ${currentProfile.mjGuildName}`
+                        : 'MJ';
+                roleEl.classList.toggle('hidden', !shouldShowRole);
+            }
+            if (userBar) userBar.classList.toggle('hidden', !displayName);
+            if (adminToggle) adminToggle.classList.toggle('hidden', !isAdminRole());
+        }
+
+        function showHomeView() {
+            updateCurrentUserBar();
 
             renderHomeView();
             document.getElementById('authView')?.classList.add('hidden');
+            document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.remove('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
@@ -354,6 +417,7 @@
 
         function showSheetView() {
             document.getElementById('authView')?.classList.add('hidden');
+            document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.remove('hidden');
             document.getElementById('fabMenu')?.classList.remove('hidden');
@@ -364,10 +428,18 @@
             if (!list) return;
 
             let sheets;
+            let profilesById = {};
             if (isLoggedIn()) {
                 list.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-gray-500 text-xs uppercase tracking-widest">Chargement...</p></div>';
                 try {
                     sheets = await AppCloud.listSheets();
+                    if (currentProfile?.role === 'mj') {
+                        sheets = sheets.filter(sheet => sheet.guildId && sheet.guildId === currentProfile.mjGuildId);
+                    }
+                    if (isPrivilegedRole()) {
+                        const profiles = await AppCloud.listProfiles();
+                        profilesById = Object.fromEntries(profiles.map(profile => [profile.id, profile]));
+                    }
                 } catch (e) {
                     list.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-red-400 text-xs uppercase tracking-widest">Erreur de chargement</p></div>';
                     return;
@@ -388,6 +460,21 @@
             list.innerHTML = sheets.map(sheet => {
                 const date = new Date(sheet.savedAt).toLocaleString('fr-FR');
                 const name = escapeHtml(sheet.name);
+                const owner = sheet.ownerId ? profilesById[sheet.ownerId] : null;
+                const ownerName = owner?.pseudo ? escapeHtml(owner.pseudo) : '';
+                const ownerHtml = ownerName
+                    ? `<div class="text-gray-400 text-xs mt-1">Joueur : ${ownerName}</div>`
+                    : '';
+                const guildHtml = sheet.guildName
+                    ? `<div class="text-gray-500 text-xs mt-1">Guilde : ${escapeHtml(sheet.guildName)}</div>`
+                    : '';
+                const canDelete = canEditSheet(sheet.ownerId);
+                const deleteHtml = canDelete
+                    ? `<button onclick="deleteSheetFromHome('${sheet.id}')"
+                                class="py-2 px-4 text-gray-600 hover:text-red-400 hover:bg-red-900/20 text-sm transition-colors border-l border-[#004e53]">
+                            &#x2715;
+                        </button>`
+                    : '';
                 const safeSrc = sheet.imageData && sheet.imageData.startsWith('data:image/') ? sheet.imageData : null;
                 const imgHtml = safeSrc
                     ? `<img src="${safeSrc}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`
@@ -397,16 +484,15 @@
                     <div class="p-3 cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">
                         <div class="text-[#00f0ff] font-bold text-base truncate">${name}</div>
                         <div class="text-gray-500 text-xs mt-1">${date}</div>
+                        ${ownerHtml}
+                        ${guildHtml}
                     </div>
                     <div class="flex border-t border-[#004e53]">
                         <button onclick="openSheetFromHome('${sheet.id}')"
                                 class="flex-1 py-2 text-[#00f0ff] hover:bg-[#004e53] text-xs uppercase font-bold tracking-wider transition-colors">
                             Ouvrir
                         </button>
-                        <button onclick="deleteSheetFromHome('${sheet.id}')"
-                                class="py-2 px-4 text-gray-600 hover:text-red-400 hover:bg-red-900/20 text-sm transition-colors border-l border-[#004e53]">
-                            &#x2715;
-                        </button>
+                        ${deleteHtml}
                     </div>
                 </div>`;
             }).join('');
@@ -414,6 +500,8 @@
 
         function newSheet() {
             currentSheetId = null;
+            currentSheetOwnerId = getCurrentUserId();
+            setReadOnlyMode(false);
             AppPersistence.resetSheetState({
                 resetImage,
                 renderWeapon,
@@ -428,6 +516,8 @@
                 ? await AppCloud.loadSheet(id)
                 : AppPersistence.loadSheetFromLocalStorage(id);
             if (!entry) { alert('Fiche introuvable.'); return; }
+            currentSheetOwnerId = entry.ownerId || null;
+            setReadOnlyMode(!canEditSheet(currentSheetOwnerId));
             const result = AppPersistence.applySheetData(entry.data, {
                 resetImage, renderWeapon, imgPreview, imgInput,
                 ensureMoveUI, autoExpandTextarea,
@@ -436,6 +526,7 @@
             currentImageData = result.currentImageData;
             currentSheetId = id;
             showSheetView();
+            setReadOnlyMode(!canEditSheet(currentSheetOwnerId));
             // Re-expand after the sheet is visible (scrollHeight is 0 while hidden)
             requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autoExpandTextarea));
         }
@@ -465,6 +556,8 @@
                 currentSheetId = isLoggedIn()
                     ? await AppCloud.saveSheet(data, null)
                     : AppPersistence.saveSheetToLocalStorage(data, null);
+                currentSheetOwnerId = getCurrentUserId();
+                setReadOnlyMode(false);
                 showSheetView();
                 requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autoExpandTextarea));
             }).catch((error) => {
@@ -477,10 +570,62 @@
 
         function showAuthView() {
             document.getElementById('authView')?.classList.remove('hidden');
+            document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
             closeFabMenu();
+        }
+
+        function showProfileSetupView() {
+            document.getElementById('authView')?.classList.add('hidden');
+            document.getElementById('profileSetupView')?.classList.remove('hidden');
+            document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('sheetView')?.classList.add('hidden');
+            document.getElementById('fabMenu')?.classList.add('hidden');
+            closeFabMenu();
+        }
+
+        function setProfileSetupMessage(text, tone) {
+            const msgEl = document.getElementById('profileSetupMessage');
+            if (!msgEl) return;
+            if (!text) {
+                msgEl.textContent = '';
+                msgEl.className = 'mt-3 text-xs hidden';
+                return;
+            }
+            msgEl.textContent = text;
+            msgEl.className = tone === 'error'
+                ? 'mt-3 text-xs text-red-400'
+                : 'mt-3 text-xs text-[#00f0ff]';
+        }
+
+        function normalizePseudo(value) {
+            return String(value || '').trim().replace(/\s+/g, ' ');
+        }
+
+        function validatePseudo(value) {
+            const pseudo = normalizePseudo(value);
+            if (!pseudo) return { pseudo, error: 'Pseudo requis.' };
+            if (pseudo.length < 2) return { pseudo, error: 'Pseudo trop court.' };
+            if (pseudo.length > 32) return { pseudo, error: 'Pseudo trop long.' };
+            return { pseudo, error: '' };
+        }
+
+        async function refreshCurrentProfile() {
+            currentProfile = isLoggedIn() ? await AppCloud.getMyProfile() : null;
+            updateCurrentUserBar();
+            return currentProfile;
+        }
+
+        async function ensureProfileReady() {
+            if (!isLoggedIn()) return true;
+            const profile = await refreshCurrentProfile();
+            if (!profile || !profile.pseudo) {
+                showProfileSetupView();
+                return false;
+            }
+            return true;
         }
 
         function setAuthMessage(text, tone) {
@@ -681,6 +826,8 @@
             const submitBtn = document.getElementById('authSubmitBtn');
             const emailInput = document.getElementById('authEmail');
             const emailField = emailInput?.closest('div');
+            const pseudoInput = document.getElementById('authPseudo');
+            const pseudoField = document.getElementById('authPseudoField');
             const passwordInput = document.getElementById('authPassword');
             const forgotBtn = document.getElementById('authForgotPasswordBtn');
             const recoveryHint = document.getElementById('authRecoveryHint');
@@ -703,6 +850,12 @@
                 if (isRecovery) emailInput.value = '';
             }
             if (emailField) emailField.classList.toggle('hidden', isRecovery);
+            if (pseudoField) pseudoField.classList.toggle('hidden', !isRegister);
+            if (pseudoInput) {
+                pseudoInput.required = false;
+                pseudoInput.setAttribute('aria-required', isRegister ? 'true' : 'false');
+                if (!isRegister) pseudoInput.value = '';
+            }
             if (passwordInput) {
                 passwordInput.required = true;
                 passwordInput.autocomplete = isRecovery ? 'new-password' : isLogin ? 'current-password' : 'new-password';
@@ -738,10 +891,12 @@
         async function handleAuthSubmit(event) {
             event.preventDefault();
             const email = document.getElementById('authEmail')?.value.trim();
+            const pseudoInput = document.getElementById('authPseudo')?.value;
             const password = document.getElementById('authPassword')?.value;
             const submitBtn = document.getElementById('authSubmitBtn');
             const mode = authMode;
             const isLogin = mode === 'login';
+            const isRegister = mode === 'register';
             const isRecovery = mode === 'recovery';
 
             if (!email && !isRecovery) {
@@ -750,6 +905,11 @@
             }
             if (!password) {
                 setAuthMessage('Mot de passe requis.', 'error');
+                return;
+            }
+            const pseudoValidation = validatePseudo(pseudoInput);
+            if (isRegister && pseudoValidation.error) {
+                setAuthMessage(pseudoValidation.error, 'error');
                 return;
             }
 
@@ -774,7 +934,7 @@
                 } else if (isLogin) {
                     await AppAuth.signIn(email, password);
                 } else {
-                    await AppAuth.signUp(email, password);
+                    await AppAuth.signUp(email, password, pseudoValidation.pseudo);
                     setAuthMessage('Compte créé ! Vérifiez vos e-mails pour confirmer votre inscription.', 'info');
                 }
             } catch (error) {
@@ -788,6 +948,38 @@
                         : mode === 'register'
                             ? "S'inscrire"
                             : 'Mettre à jour';
+                }
+            }
+        }
+
+        async function handleProfileSetupSubmit(event) {
+            event.preventDefault();
+            const input = document.getElementById('profileSetupPseudo');
+            const submitBtn = document.getElementById('profileSetupSubmitBtn');
+            const validation = validatePseudo(input?.value);
+
+            if (validation.error) {
+                setProfileSetupMessage(validation.error, 'error');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Validation...';
+            }
+            setProfileSetupMessage('', 'info');
+
+            try {
+                await AppCloud.completeProfile(validation.pseudo);
+                await refreshCurrentProfile();
+                await handlePostSignIn({ skipProfileCheck: true });
+            } catch (error) {
+                console.error('[profile:complete]', error);
+                setProfileSetupMessage(formatAuthError(error, 'profile'), 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Valider le pseudo';
                 }
             }
         }
@@ -806,7 +998,12 @@
             // onAuthStateChange will fire SIGNED_OUT -> showAuthView()
         }
 
-        async function handlePostSignIn() {
+        async function handlePostSignIn(options = {}) {
+            if (!options.skipProfileCheck) {
+                const ready = await ensureProfileReady();
+                if (!ready) return;
+            }
+
             const localSheets = (() => {
                 try { return Object.values(JSON.parse(localStorage.getItem('swtor_sheets') || '{}')); }
                 catch (e) { return []; }
@@ -824,6 +1021,234 @@
                 }
             }
             showHomeView();
+        }
+
+        function roleLabel(role) {
+            if (role === 'admin') return 'Admin';
+            if (role === 'mj') return 'MJ';
+            return 'Joueur';
+        }
+
+        async function renderAdminPanel() {
+            const list = document.getElementById('adminUserList');
+            if (!list || !isAdminRole()) return;
+            list.innerHTML = '<p class="text-gray-500 text-xs uppercase tracking-widest py-4">Chargement...</p>';
+
+            try {
+                const profiles = await AppCloud.listProfiles();
+                if (profiles.length === 0) {
+                    list.innerHTML = '<p class="text-gray-500 text-center py-6">Aucun utilisateur</p>';
+                    return;
+                }
+
+                list.innerHTML = profiles.map((profile) => {
+                    const pseudo = escapeHtml(profile.pseudo || 'Pseudo manquant');
+                    const email = profile.email ? escapeHtml(profile.email) : 'Email indisponible';
+                    const role = profile.role || 'user';
+                    return `<div class="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-[#002e33] border border-[#004e53] rounded p-3">
+                        <div class="min-w-0">
+                            <div class="text-[#00f0ff] font-bold truncate">${pseudo}</div>
+                            <div class="text-gray-500 text-xs truncate">${email}</div>
+                        </div>
+                        <label class="sr-only" for="role-${profile.id}">RÃ´le</label>
+                        <select id="role-${profile.id}" data-testid="admin-role-select" onchange="handleAdminRoleChange('${profile.id}', this.value)"
+                                class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
+                            <option value="user" ${role === 'user' ? 'selected' : ''}>${roleLabel('user')}</option>
+                            <option value="mj" ${role === 'mj' ? 'selected' : ''}>${roleLabel('mj')}</option>
+                            <option value="admin" ${role === 'admin' ? 'selected' : ''}>${roleLabel('admin')}</option>
+                        </select>
+                    </div>`;
+                }).join('');
+            } catch (error) {
+                console.error('[admin:profiles]', error);
+                list.innerHTML = '<p class="text-red-400 text-xs uppercase tracking-widest py-4">Erreur de chargement</p>';
+            }
+        }
+
+        async function toggleAdminPanel(forceOpen) {
+            if (!isAdminRole()) return;
+            const panel = document.getElementById('adminPanel');
+            if (!panel) return;
+            const open = typeof forceOpen === 'boolean' ? forceOpen : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !open);
+            if (open) await renderAdminPanel();
+        }
+
+        async function handleAdminRoleChange(userId, role) {
+            if (!isAdminRole()) return;
+            try {
+                await AppCloud.setUserRole(userId, role);
+                if (userId === getCurrentUserId()) {
+                    await refreshCurrentProfile();
+                    if (!isAdminRole()) document.getElementById('adminPanel')?.classList.add('hidden');
+                }
+                await renderHomeView();
+            } catch (error) {
+                console.error('[admin:role]', error);
+                alert('Erreur lors du changement de rÃ´le.');
+                await renderAdminPanel();
+            }
+        }
+
+        function guildOptionsHtml(selectedId = '') {
+            if (!AppGuilds) return '';
+            return AppGuilds.GUILDS.map((guild) => {
+                const selected = guild.id === selectedId ? 'selected' : '';
+                return `<option value="${guild.id}" ${selected}>${escapeHtml(guild.name)}</option>`;
+            }).join('');
+        }
+
+        function updateAdminTabs() {
+            const usersList = document.getElementById('adminUserList');
+            const unguildedList = document.getElementById('adminUnguildedList');
+            const usersTab = document.getElementById('adminUsersTab');
+            const unguildedTab = document.getElementById('adminUnguildedTab');
+            const usersActive = adminPanelTab === 'users';
+
+            usersList?.classList.toggle('hidden', !usersActive);
+            unguildedList?.classList.toggle('hidden', usersActive);
+
+            if (usersTab) {
+                usersTab.className = usersActive
+                    ? 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded'
+                    : 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 rounded';
+            }
+            if (unguildedTab) {
+                unguildedTab.className = !usersActive
+                    ? 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded'
+                    : 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 rounded';
+            }
+        }
+
+        async function renderAdminPanel() {
+            const list = document.getElementById('adminUserList');
+            if (!list || !isAdminRole()) return;
+            updateAdminTabs();
+            list.innerHTML = '<p class="text-gray-500 text-xs uppercase tracking-widest py-4">Chargement...</p>';
+
+            try {
+                const profiles = await AppCloud.listProfiles();
+                if (profiles.length === 0) {
+                    list.innerHTML = '<p class="text-gray-500 text-center py-6">Aucun utilisateur</p>';
+                    return;
+                }
+
+                list.innerHTML = profiles.map((profile) => {
+                    const pseudo = escapeHtml(profile.pseudo || 'Pseudo manquant');
+                    const email = profile.email ? escapeHtml(profile.email) : 'Email indisponible';
+                    const role = profile.role || 'user';
+                    const selectedGuildId = profile.mjGuildId || AppGuilds?.GUILDS[0]?.id || '';
+                    return `<div class="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-[#002e33] border border-[#004e53] rounded p-3">
+                        <div class="min-w-0">
+                            <div class="text-[#00f0ff] font-bold truncate">${pseudo}</div>
+                            <div class="text-gray-500 text-xs truncate">${email}</div>
+                        </div>
+                        <div class="flex flex-col sm:flex-row gap-2">
+                            <label class="sr-only" for="role-${profile.id}">Role</label>
+                            <select id="role-${profile.id}" data-testid="admin-role-select" onchange="handleAdminRoleChange('${profile.id}')"
+                                    class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
+                                <option value="user" ${role === 'user' ? 'selected' : ''}>${roleLabel('user')}</option>
+                                <option value="mj" ${role === 'mj' ? 'selected' : ''}>${roleLabel('mj')}</option>
+                                <option value="admin" ${role === 'admin' ? 'selected' : ''}>${roleLabel('admin')}</option>
+                            </select>
+                            <label class="sr-only" for="mj-guild-${profile.id}">Guilde MJ</label>
+                            <select id="mj-guild-${profile.id}" data-testid="admin-mj-guild-select" onchange="handleAdminRoleChange('${profile.id}')"
+                                    class="${role === 'mj' ? '' : 'hidden'} bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
+                                ${guildOptionsHtml(selectedGuildId)}
+                            </select>
+                        </div>
+                    </div>`;
+                }).join('');
+            } catch (error) {
+                console.error('[admin:profiles]', error);
+                list.innerHTML = '<p class="text-red-400 text-xs uppercase tracking-widest py-4">Erreur de chargement</p>';
+            }
+        }
+
+        async function renderAdminUnguildedPanel() {
+            const list = document.getElementById('adminUnguildedList');
+            if (!list || !isAdminRole()) return;
+            updateAdminTabs();
+            list.innerHTML = '<p class="text-gray-500 text-xs uppercase tracking-widest py-4">Chargement...</p>';
+
+            try {
+                const sheets = await AppCloud.listUnguildedSheets();
+                if (sheets.length === 0) {
+                    list.innerHTML = '<p class="text-gray-500 text-center py-6">Aucune fiche sans guilde</p>';
+                    return;
+                }
+
+                list.innerHTML = sheets.map((sheet) => {
+                    const name = escapeHtml(sheet.name || 'Sans nom');
+                    return `<div class="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-[#002e33] border border-[#004e53] rounded p-3">
+                        <div class="text-[#00f0ff] font-bold truncate">${name}</div>
+                        <select data-testid="admin-assign-guild-select" onchange="handleAdminAssignSheetGuild('${sheet.id}', this.value)"
+                                class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
+                            <option value="">Choisir une guilde</option>
+                            ${guildOptionsHtml('')}
+                        </select>
+                    </div>`;
+                }).join('');
+            } catch (error) {
+                console.error('[admin:unguilded]', error);
+                list.innerHTML = '<p class="text-red-400 text-xs uppercase tracking-widest py-4">Erreur de chargement</p>';
+            }
+        }
+
+        async function switchAdminTab(tab) {
+            adminPanelTab = tab === 'unguilded' ? 'unguilded' : 'users';
+            updateAdminTabs();
+            if (adminPanelTab === 'users') await renderAdminPanel();
+            else await renderAdminUnguildedPanel();
+        }
+
+        async function toggleAdminPanel(forceOpen) {
+            if (!isAdminRole()) return;
+            const panel = document.getElementById('adminPanel');
+            if (!panel) return;
+            const open = typeof forceOpen === 'boolean' ? forceOpen : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !open);
+            if (open) await switchAdminTab(adminPanelTab);
+        }
+
+        async function handleAdminRoleChange(userId) {
+            if (!isAdminRole()) return;
+            const roleSelect = document.getElementById(`role-${userId}`);
+            const guildSelect = document.getElementById(`mj-guild-${userId}`);
+            const role = roleSelect?.value || 'user';
+            const defaultGuildId = AppGuilds?.GUILDS[0]?.id || null;
+            const mjGuildId = role === 'mj' ? (guildSelect?.value || defaultGuildId) : null;
+
+            if (guildSelect) {
+                guildSelect.classList.toggle('hidden', role !== 'mj');
+                if (role === 'mj' && !guildSelect.value && defaultGuildId) guildSelect.value = defaultGuildId;
+            }
+
+            try {
+                await AppCloud.setUserRole(userId, role, mjGuildId);
+                if (userId === getCurrentUserId()) {
+                    await refreshCurrentProfile();
+                    if (!isAdminRole()) document.getElementById('adminPanel')?.classList.add('hidden');
+                }
+                await renderHomeView();
+            } catch (error) {
+                console.error('[admin:role]', error);
+                alert('Erreur lors du changement de role.');
+                await renderAdminPanel();
+            }
+        }
+
+        async function handleAdminAssignSheetGuild(sheetId, guildId) {
+            if (!isAdminRole() || !guildId) return;
+            try {
+                await AppCloud.assignSheetGuild(sheetId, guildId);
+                await renderAdminUnguildedPanel();
+                await renderHomeView();
+            } catch (error) {
+                console.error('[admin:assign-guild]', error);
+                alert('Erreur lors de l attribution de la guilde.');
+                await renderAdminUnguildedPanel();
+            }
         }
 
         function toggleFabMenu() {
@@ -894,7 +1319,8 @@
             }
 
             if (!recoveryRedirect && session) {
-                showHomeView();
+                const ready = await ensureProfileReady();
+                if (ready) showHomeView();
             } else if (!recoveryRedirect) {
                 showAuthView();
             }
@@ -908,6 +1334,8 @@
                 } else if (event === 'SIGNED_IN') {
                     await handlePostSignIn();
                 } else if (event === 'SIGNED_OUT') {
+                    currentProfile = null;
+                    currentSheetReadOnly = false;
                     showAuthView();
                     setAuthMode('login');
                 }
@@ -952,9 +1380,14 @@
             switchAuthTab,
             handleForgotPassword,
             handleAuthSubmit,
+            handleProfileSetupSubmit,
             continueWithoutAccount,
             handleLogout,
             handlePostSignIn,
+            toggleAdminPanel,
+            switchAdminTab,
+            handleAdminRoleChange,
+            handleAdminAssignSheetGuild,
             toggleFabMenu,
             closeFabMenu
         };

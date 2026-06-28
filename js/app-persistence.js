@@ -1,6 +1,7 @@
 (function (global) {
     const AppLogic = global.CharacterSheetLogic;
     const AppDom = global.CharacterSheetDom;
+    const AppGuilds = global.CharacterSheetGuilds;
 
     function readFileAsText(file) {
         return new Promise((resolve, reject) => {
@@ -86,6 +87,11 @@
 
             const element = document.getElementById(key);
             if (!element) return;
+
+            if (key === 'guild_name') {
+                element.value = AppGuilds ? AppGuilds.normalizeName(value) : '';
+                return;
+            }
 
             if (element.type === 'checkbox') {
                 element.checked = Boolean(value);
