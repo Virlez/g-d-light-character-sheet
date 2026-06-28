@@ -18,6 +18,8 @@
         let currentSheetReadOnly = false;
         let currentProfile = null;
         let adminPanelTab = 'users';
+        let homeSheetTab = 'all';
+        let pendingUnguildedGuildAssignments = {};
         let authMode = 'login';
         let autosaveTimer = null;
         let autosaveInFlight = false;
@@ -496,6 +498,241 @@
                     </div>
                 </div>`;
             }).join('');
+        }
+
+        function getHomeSheetTabs() {
+            if (currentProfile?.role === 'admin') {
+                return [
+                    { id: 'mine', label: 'Mes fiches' },
+                    { id: 'unguilded', label: 'Fiches sans guilde' }
+                ];
+            }
+            if (currentProfile?.role === 'mj') {
+                return [
+                    { id: 'mine', label: 'Mes personnages' },
+                    { id: 'players', label: 'Fiches des joueurs' }
+                ];
+            }
+            return [];
+        }
+
+        function renderHomeSheetTabs() {
+            const tabsEl = document.getElementById('homeSheetTabs');
+            if (!tabsEl) return;
+
+            const tabs = getHomeSheetTabs();
+            if (tabs.length === 0) {
+                tabsEl.classList.add('hidden');
+                tabsEl.innerHTML = '';
+                homeSheetTab = 'all';
+                return;
+            }
+
+            if (!tabs.some(tab => tab.id === homeSheetTab)) homeSheetTab = tabs[0].id;
+            tabsEl.classList.remove('hidden');
+            tabsEl.innerHTML = tabs.map((tab) => {
+                const active = tab.id === homeSheetTab;
+                const className = active
+                    ? 'px-4 py-2 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded'
+                    : 'px-4 py-2 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 hover:text-[#00f0ff] rounded transition-colors';
+                return `<button type="button" data-testid="home-sheet-tab-${tab.id}" onclick="switchHomeSheetTab('${tab.id}')" class="${className}">${tab.label}</button>`;
+            }).join('');
+        }
+
+        function isOwnedSheet(sheet) {
+            if (!isLoggedIn()) return true;
+            return sheet.ownerId === getCurrentUserId();
+        }
+
+        function isUnguildedSheet(sheet) {
+            return !sheet.guildId;
+        }
+
+        function isOtherPlayerGuildSheet(sheet) {
+            return (
+                currentProfile?.role === 'mj' &&
+                sheet.ownerId !== getCurrentUserId() &&
+                sheet.guildId &&
+                sheet.guildId === currentProfile.mjGuildId
+            );
+        }
+
+        function emptyHomeMessage() {
+            if (currentProfile?.role === 'admin' && homeSheetTab === 'unguilded') return 'Aucune fiche sans guilde';
+            if (currentProfile?.role === 'mj' && homeSheetTab === 'players') return 'Aucune fiche de joueur';
+            return 'Aucune fiche sauvegardee';
+        }
+
+        function renderEmptyHomeList(list) {
+            list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 min-h-[160px]';
+            list.innerHTML = `<div class="col-span-full text-center py-16">
+                <p class="text-5xl opacity-10 mb-4">&#9632;</p>
+                <p class="text-gray-500 uppercase tracking-widest text-sm">${emptyHomeMessage()}</p>
+                <p class="text-gray-600 text-xs mt-1">Creez votre premiere fiche ci-dessous</p>
+            </div>`;
+        }
+
+        function renderSheetCards(list, sheets, profilesById) {
+            list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 min-h-[160px]';
+            list.innerHTML = sheets.map(sheet => {
+                const date = new Date(sheet.savedAt).toLocaleString('fr-FR');
+                const name = escapeHtml(sheet.name);
+                const owner = sheet.ownerId ? profilesById[sheet.ownerId] : null;
+                const ownerName = owner?.pseudo ? escapeHtml(owner.pseudo) : '';
+                const ownerHtml = ownerName
+                    ? `<div class="text-gray-400 text-xs mt-1">Joueur : ${ownerName}</div>`
+                    : '';
+                const guildHtml = sheet.guildName
+                    ? `<div class="text-gray-500 text-xs mt-1">Guilde : ${escapeHtml(sheet.guildName)}</div>`
+                    : '';
+                const canDelete = canEditSheet(sheet.ownerId);
+                const deleteHtml = canDelete
+                    ? `<button onclick="deleteSheetFromHome('${sheet.id}')"
+                                class="py-2 px-4 text-gray-600 hover:text-red-400 hover:bg-red-900/20 text-sm transition-colors border-l border-[#004e53]">
+                            &#x2715;
+                        </button>`
+                    : '';
+                const safeSrc = sheet.imageData && sheet.imageData.startsWith('data:image/') ? sheet.imageData : null;
+                const imgHtml = safeSrc
+                    ? `<img src="${safeSrc}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`
+                    : `<div class="w-full h-full flex items-center justify-center text-5xl opacity-10">&#9632;</div>`;
+                return `<div class="bg-[#001a1f] border border-[#004e53] rounded-lg overflow-hidden hover:border-[#00f0ff] transition-colors">
+                    <div class="h-52 bg-[#002e33] overflow-hidden cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">${imgHtml}</div>
+                    <div class="p-3 cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">
+                        <div class="text-[#00f0ff] font-bold text-base truncate">${name}</div>
+                        <div class="text-gray-500 text-xs mt-1">${date}</div>
+                        ${ownerHtml}
+                        ${guildHtml}
+                    </div>
+                    <div class="flex border-t border-[#004e53]">
+                        <button onclick="openSheetFromHome('${sheet.id}')"
+                                class="flex-1 py-2 text-[#00f0ff] hover:bg-[#004e53] text-xs uppercase font-bold tracking-wider transition-colors">
+                            Ouvrir
+                        </button>
+                        ${deleteHtml}
+                    </div>
+                </div>`;
+            }).join('');
+        }
+
+        function renderUnguildedSheetRows(list, sheets, profilesById) {
+            list.className = 'flex flex-col gap-3 mb-10 min-h-[160px]';
+            const rowsHtml = sheets.map((sheet) => {
+                const owner = sheet.ownerId ? profilesById[sheet.ownerId] : null;
+                const ownerName = escapeHtml(owner?.pseudo || 'Pseudo inconnu');
+                const name = escapeHtml(sheet.name || 'Sans nom');
+                const selectedGuildId = pendingUnguildedGuildAssignments[sheet.id] || '';
+                return `<div data-testid="home-unguilded-row" class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#001a1f] border border-[#004e53] rounded-lg p-3">
+                    <div class="min-w-0">
+                        <div class="text-[#00f0ff] font-bold truncate">${name}</div>
+                        <div class="text-gray-400 text-xs mt-1">Joueur : ${ownerName}</div>
+                    </div>
+                    <select data-testid="home-assign-guild-select" onchange="handlePendingUnguildedGuildChange('${sheet.id}', this.value)"
+                            class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
+                        <option value="">Choisir une guilde</option>
+                        ${guildOptionsHtml(selectedGuildId)}
+                    </select>
+                </div>`;
+            }).join('');
+            const pendingCount = Object.keys(pendingUnguildedGuildAssignments).filter((sheetId) => pendingUnguildedGuildAssignments[sheetId]).length;
+            const buttonDisabled = pendingCount === 0 ? 'disabled' : '';
+            const buttonClass = pendingCount === 0
+                ? 'bg-[#002e33] text-gray-600 border border-[#004e53] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm cursor-not-allowed'
+                : 'bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] border border-[#00f0ff] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm transition-colors';
+            list.innerHTML = `${rowsHtml}
+                <div class="flex justify-end pt-2">
+                    <button type="button" data-testid="home-apply-guild-assignments" onclick="applyPendingUnguildedGuildAssignments()" ${buttonDisabled}
+                            class="${buttonClass}">
+                        Valider les changements${pendingCount ? ` (${pendingCount})` : ''}
+                    </button>
+                </div>`;
+        }
+
+        function updatePendingUnguildedApplyButton() {
+            const button = document.querySelector('[data-testid="home-apply-guild-assignments"]');
+            if (!button) return;
+
+            const pendingCount = Object.keys(pendingUnguildedGuildAssignments)
+                .filter((sheetId) => pendingUnguildedGuildAssignments[sheetId])
+                .length;
+            const disabled = pendingCount === 0;
+            button.disabled = disabled;
+            button.textContent = `Valider les changements${pendingCount ? ` (${pendingCount})` : ''}`;
+            button.className = disabled
+                ? 'bg-[#002e33] text-gray-600 border border-[#004e53] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm cursor-not-allowed'
+                : 'bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] border border-[#00f0ff] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm transition-colors';
+        }
+
+        function filterHomeSheets(sheets) {
+            if (currentProfile?.role === 'admin') {
+                return homeSheetTab === 'unguilded' ? sheets.filter(isUnguildedSheet) : sheets;
+            }
+            if (currentProfile?.role === 'mj') {
+                return homeSheetTab === 'players' ? sheets.filter(sheet => !isOwnedSheet(sheet)) : sheets;
+            }
+            return sheets;
+        }
+
+        function getHomeSheetQueryOptions() {
+            if (!isLoggedIn()) return {};
+            if (currentProfile?.role === 'admin') {
+                return homeSheetTab === 'unguilded'
+                    ? { unguildedOnly: true }
+                    : { ownerId: getCurrentUserId() };
+            }
+            if (currentProfile?.role === 'mj') {
+                return homeSheetTab === 'players'
+                    ? { guildId: currentProfile.mjGuildId }
+                    : { ownerId: getCurrentUserId() };
+            }
+            return {};
+        }
+
+        async function switchHomeSheetTab(tab) {
+            homeSheetTab = tab;
+            await renderHomeView();
+        }
+
+        async function renderHomeView() {
+            const list = document.getElementById('homeSheetList');
+            if (!list) return;
+
+            renderHomeSheetTabs();
+
+            let sheets;
+            let profilesById = {};
+            if (isLoggedIn()) {
+                list.className = 'grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 min-h-[160px]';
+                list.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-gray-500 text-xs uppercase tracking-widest">Chargement...</p></div>';
+                try {
+                    const queryOptions = getHomeSheetQueryOptions();
+                    sheets = queryOptions.unguildedOnly
+                        ? await AppCloud.listUnguildedSheets()
+                        : await AppCloud.listSheets(queryOptions);
+                    if (isPrivilegedRole()) {
+                        const profiles = await AppCloud.listProfiles();
+                        profilesById = Object.fromEntries(profiles.map(profile => [profile.id, profile]));
+                    }
+                } catch (e) {
+                    list.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-red-400 text-xs uppercase tracking-widest">Erreur de chargement</p></div>';
+                    return;
+                }
+            } else {
+                sheets = AppPersistence.listSheetsFromLocalStorage();
+            }
+
+            const visibleSheets = filterHomeSheets(sheets);
+            if (visibleSheets.length === 0) {
+                renderEmptyHomeList(list);
+                return;
+            }
+
+            if (currentProfile?.role === 'admin' && homeSheetTab === 'unguilded') {
+                renderUnguildedSheetRows(list, visibleSheets, profilesById);
+                return;
+            }
+
+            renderSheetCards(list, visibleSheets, profilesById);
         }
 
         function newSheet() {
@@ -1242,12 +1479,38 @@
             if (!isAdminRole() || !guildId) return;
             try {
                 await AppCloud.assignSheetGuild(sheetId, guildId);
-                await renderAdminUnguildedPanel();
                 await renderHomeView();
             } catch (error) {
                 console.error('[admin:assign-guild]', error);
                 alert('Erreur lors de l attribution de la guilde.');
-                await renderAdminUnguildedPanel();
+                await renderHomeView();
+            }
+        }
+
+        function handlePendingUnguildedGuildChange(sheetId, guildId) {
+            if (!isAdminRole()) return;
+            if (guildId) {
+                pendingUnguildedGuildAssignments[sheetId] = guildId;
+            } else {
+                delete pendingUnguildedGuildAssignments[sheetId];
+            }
+            updatePendingUnguildedApplyButton();
+        }
+
+        async function applyPendingUnguildedGuildAssignments() {
+            if (!isAdminRole()) return;
+            const assignments = Object.entries(pendingUnguildedGuildAssignments)
+                .filter(([, guildId]) => !!guildId);
+            if (assignments.length === 0) return;
+
+            try {
+                await Promise.all(assignments.map(([sheetId, guildId]) => AppCloud.assignSheetGuild(sheetId, guildId)));
+                pendingUnguildedGuildAssignments = {};
+                await renderHomeView();
+            } catch (error) {
+                console.error('[admin:assign-guilds]', error);
+                alert('Erreur lors de l attribution des guildes.');
+                await renderHomeView();
             }
         }
 
@@ -1373,6 +1636,7 @@
             showHomeView,
             showSheetView,
             renderHomeView,
+            switchHomeSheetTab,
             newSheet,
             openSheetFromHome,
             deleteSheetFromHome,
@@ -1388,6 +1652,8 @@
             switchAdminTab,
             handleAdminRoleChange,
             handleAdminAssignSheetGuild,
+            handlePendingUnguildedGuildChange,
+            applyPendingUnguildedGuildAssignments,
             toggleFabMenu,
             closeFabMenu
         };

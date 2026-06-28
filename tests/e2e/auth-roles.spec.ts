@@ -1,4 +1,5 @@
 import { expect, test, type Page } from '@playwright/test';
+import { portraitFixture } from './support/test-data';
 
 type MockProfile = {
   id: string;
@@ -14,6 +15,7 @@ type MockSheet = {
   saved_at: string;
   user_id: string;
   guild_id?: string | null;
+  image_data?: string | null;
   data: Record<string, unknown>;
 };
 
@@ -30,6 +32,8 @@ async function installSupabaseMock(
     profiles: options.profiles ?? [],
     sheets: options.sheets ?? [],
     upsertRows: [] as unknown[],
+    queryCounts: { profiles: 0, sheets: 0 },
+    selects: [] as Array<{ table: string; columns: string }>,
     signUpPayload: null as unknown
   };
 
@@ -46,8 +50,13 @@ async function installSupabaseMock(
               const query = {
                 _table: table,
                 _filters: [],
+                _select: '*',
                 _single: false,
-                select() { return this; },
+                select(columns) {
+                  this._select = columns || '*';
+                  state.selects.push({ table, columns: this._select });
+                  return this;
+                },
                 order() { return this; },
                 eq(column, value) {
                   this._filters.push({ column, value });
@@ -84,19 +93,35 @@ async function installSupabaseMock(
 
             function resolveQuery(query, maybeSingle) {
               let rows = [];
-              if (query._table === 'profiles') rows = state.profiles;
-              if (query._table === 'sheets') rows = state.sheets;
+              if (query._table === 'profiles') {
+                state.queryCounts.profiles += 1;
+                rows = state.profiles;
+              }
+              if (query._table === 'sheets') {
+                state.queryCounts.sheets += 1;
+                rows = state.sheets;
+              }
 
               rows = applySheetRls(query._table, rows);
               rows = rows.filter((row) => query._filters.every((filter) => filter.is ? row[filter.column] === null || typeof row[filter.column] === 'undefined' : row[filter.column] === filter.value));
               if (query._table === 'sheets') rows = rows.slice().sort((a, b) => String(b.saved_at).localeCompare(String(a.saved_at)));
               if (query._table === 'profiles') rows = rows.slice().sort((a, b) => String(a.pseudo || '').localeCompare(String(b.pseudo || '')));
+              rows = rows.map((row) => projectRow(row, query._select));
 
               if (query._single) {
                 const row = rows[0] || null;
                 return { data: row, error: row || maybeSingle ? null : { message: 'not found' } };
               }
               return { data: rows, error: null };
+            }
+
+            function projectRow(row, select) {
+              if (!select || select === '*') return row;
+              const columns = String(select).split(',').map((column) => column.trim()).filter(Boolean);
+              return columns.reduce((projected, column) => {
+                projected[column] = row[column];
+                return projected;
+              }, {});
             }
 
             function currentProfile() {
@@ -211,11 +236,19 @@ test.describe('Auth profiles and roles', () => {
         { id: 'player-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }
       ],
       sheets: [{
+        id: 'sheet-own',
+        name: 'MJ Perso',
+        saved_at: '2026-06-28T11:00:00.000Z',
+        user_id: 'gm-1',
+        guild_id: 'ordo_augustus',
+        data: { char_name: 'MJ Perso', player_name: 'Le MJ', guild_name: 'Ordo Augustus' }
+      }, {
         id: 'sheet-1',
         name: 'Kara Venn',
         saved_at: '2026-06-28T12:00:00.000Z',
         user_id: 'player-1',
         guild_id: 'ordo_augustus',
+        image_data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
         data: { char_name: 'Kara Venn', player_name: 'Kara', guild_name: 'Ordo Augustus' }
       }, {
         id: 'sheet-2',
@@ -229,8 +262,25 @@ test.describe('Auth profiles and roles', () => {
 
     await page.goto('/');
     await expect(page.locator('#homeUserRole')).toHaveText('MJ - Ordo Augustus');
+    await expect(page.getByTestId('home-sheet-tabs')).toContainText('Mes personnages');
+    await expect(page.locator('#homeSheetList')).toContainText('MJ Perso');
+    await expect(page.locator('#homeSheetList')).not.toContainText('Kara Venn');
+
+    await page.getByTestId('home-sheet-tab-players').click();
     await expect(page.locator('#homeSheetList')).toContainText('Joueur : Kara');
+    await expect(page.locator('#homeSheetList')).toContainText('Kara Venn');
+    await expect(page.locator('#homeSheetList')).not.toContainText('MJ Perso');
     await expect(page.locator('#homeSheetList')).not.toContainText('Voss Rae');
+    await expect(page.locator('#homeSheetList img')).toHaveAttribute('src', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=');
+
+    const sheetListSelects = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.selects
+        .filter((entry: any) => entry.table === 'sheets')
+        .map((entry: any) => entry.columns);
+    });
+    expect(sheetListSelects).toContain('id, name, saved_at, image_data, user_id, guild_id');
+    expect(sheetListSelects).not.toContain('id, name, saved_at, data, user_id, guild_id');
 
     await page.getByText('Ouvrir').click();
     await expect(page.locator('#char_name')).toHaveValue('Kara Venn');
@@ -260,9 +310,17 @@ test.describe('Auth profiles and roles', () => {
       session: { user: { id: 'admin-1', email: 'admin@example.com' } },
       profiles: [
         { id: 'admin-1', email: 'admin@example.com', pseudo: 'Admin', role: 'admin' },
-        { id: 'gm-1', email: 'gm@example.com', pseudo: 'Le MJ', role: 'user' }
+        { id: 'gm-1', email: 'gm@example.com', pseudo: 'Le MJ', role: 'user' },
+        { id: 'player-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }
       ],
       sheets: [{
+        id: 'admin-sheet',
+        name: 'Admin Perso',
+        saved_at: '2026-06-28T11:00:00.000Z',
+        user_id: 'admin-1',
+        guild_id: 'ordo_augustus',
+        data: { char_name: 'Admin Perso', guild_name: 'Ordo Augustus' }
+      }, {
         id: 'sheet-1',
         name: 'Sans Guilde',
         saved_at: '2026-06-28T12:00:00.000Z',
@@ -273,6 +331,10 @@ test.describe('Auth profiles and roles', () => {
     });
 
     await page.goto('/');
+    await expect(page.getByTestId('home-sheet-tabs')).toContainText('Mes fiches');
+    await expect(page.locator('#homeSheetList')).toContainText('Admin Perso');
+    await expect(page.locator('#homeSheetList')).not.toContainText('Sans Guilde');
+
     await page.locator('#adminPanelToggle').click();
 
     await page.locator('#role-gm-1').selectOption('mj');
@@ -286,11 +348,42 @@ test.describe('Auth profiles and roles', () => {
     expect(gmProfile.role).toBe('mj');
     expect(gmProfile.mj_guild_id).toBe('arcanum_astralis');
 
-    await page.locator('#adminUnguildedTab').click();
-    await expect(page.getByTestId('admin-unguilded-list')).toContainText('Sans Guilde');
-    await page.getByTestId('admin-assign-guild-select').selectOption('ordo_augustus');
+    await page.locator('#adminPanel button').click();
+    await page.getByTestId('home-sheet-tab-unguilded').click();
+    await expect(page.getByTestId('home-unguilded-row')).toContainText('Sans Guilde');
+    await expect(page.getByTestId('home-unguilded-row')).toContainText('Joueur : Kara');
+    await expect(page.getByTestId('home-apply-guild-assignments')).toBeDisabled();
+    const unguildedSelects = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.selects
+        .filter((entry: any) => entry.table === 'sheets')
+        .map((entry: any) => entry.columns);
+    });
+    expect(unguildedSelects).toContain('id, name, saved_at, user_id, guild_id');
 
-    const sheet = await page.evaluate(() => {
+    const sheetQueryCountBeforeSelect = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.queryCounts.sheets;
+    });
+    await page.getByTestId('home-assign-guild-select').selectOption('ordo_augustus');
+    await expect(page.getByTestId('home-assign-guild-select')).toHaveValue('ordo_augustus');
+    await expect(page.getByTestId('home-apply-guild-assignments')).toBeEnabled();
+    await expect(page.getByTestId('home-apply-guild-assignments')).toContainText('Valider les changements (1)');
+    const sheetQueryCountAfterSelect = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.queryCounts.sheets;
+    });
+    expect(sheetQueryCountAfterSelect).toBe(sheetQueryCountBeforeSelect);
+
+    let sheet = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.sheets.find((item: any) => item.id === 'sheet-1');
+    });
+    expect(sheet.guild_id).toBeNull();
+
+    await page.getByTestId('home-apply-guild-assignments').click();
+
+    sheet = await page.evaluate(() => {
       const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
       return state.sheets.find((item: any) => item.id === 'sheet-1');
     });
@@ -308,6 +401,7 @@ test.describe('Auth profiles and roles', () => {
     await page.getByText('+ Nouvelle Fiche').click();
     await page.locator('#char_name').fill('Kara Venn');
     await page.locator('#guild_name').selectOption('Arcanum Astralis');
+    await page.getByTestId('photo-upload-input').setInputFiles(portraitFixture);
     await Promise.all([
       page.waitForEvent('dialog').then((dialog) => dialog.accept()),
       page.evaluate(async () => {
@@ -321,5 +415,6 @@ test.describe('Auth profiles and roles', () => {
     });
     expect(saved.guild_id).toBe('arcanum_astralis');
     expect(saved.data.guild_name).toBe('Arcanum Astralis');
+    expect(saved.image_data).toContain('data:image/svg+xml');
   });
 });

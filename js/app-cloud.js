@@ -26,7 +26,7 @@
             ownerId: row.user_id || null,
             guildId: row.guild_id || null,
             guildName: row.guild_id && AppGuilds ? AppGuilds.nameFromId(row.guild_id) : '',
-            imageData: row.data && row.data.char_image_data ? row.data.char_image_data : null
+            imageData: row.image_data || null
         };
     }
 
@@ -41,13 +41,16 @@
         };
     }
 
-    async function listSheets() {
+    async function listSheets(filters = {}) {
         const client = getClient();
         if (!client) return [];
-        const { data, error } = await client
+        let query = client
             .from('sheets')
-            .select('id, name, saved_at, data, user_id, guild_id')
+            .select('id, name, saved_at, image_data, user_id, guild_id')
             .order('saved_at', { ascending: false });
+        if (filters.ownerId) query = query.eq('user_id', filters.ownerId);
+        if (filters.guildId) query = query.eq('guild_id', filters.guildId);
+        const { data, error } = await query;
         if (error) throw error;
         return (data || []).map(mapSheetRow);
     }
@@ -67,6 +70,7 @@
             id,
             name: normalized.data.char_name || 'Sans nom',
             data: normalized.data,
+            image_data: normalized.data.char_image_data || null,
             guild_id: normalized.guildId,
             saved_at: new Date().toISOString()
         };
@@ -114,6 +118,7 @@
                 id: entry.id,
                 name: entry.name,
                 data: normalized.data,
+                image_data: normalized.data.char_image_data || null,
                 guild_id: normalized.guildId,
                 saved_at: entry.savedAt
             };
@@ -179,13 +184,13 @@
         if (!client) return [];
         const { data, error } = await client
             .from('sheets')
-            .select('id, name, saved_at, data, user_id, guild_id')
+            .select('id, name, saved_at, user_id, guild_id')
             .is('guild_id', null)
             .order('saved_at', { ascending: false });
         if (error) throw error;
         return (data || []).map(row => ({
             id: row.id,
-            name: row.name || row.data?.char_name || 'Sans nom',
+            name: row.name || 'Sans nom',
             savedAt: row.saved_at,
             ownerId: row.user_id || null
         }));
