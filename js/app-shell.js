@@ -28,6 +28,12 @@
         let adminSheetsHasMore = false;
         let adminSheetsSearchTimer = null;
         let adminSheetsRenderTargetId = 'adminSheetsList';
+        const mjPlayerSheetsPageSize = 50;
+        let mjPlayerSheetsFilters = { ownerId: '', search: '' };
+        let mjPlayerSheetsRows = [];
+        let mjPlayerSheetsOffset = 0;
+        let mjPlayerSheetsHasMore = false;
+        let mjPlayerSheetsSearchTimer = null;
         let authMode = 'login';
         let autosaveTimer = null;
         let autosaveInFlight = false;
@@ -765,7 +771,7 @@
             }
             if (currentProfile?.role === 'mj') {
                 return homeSheetTab === 'players'
-                    ? { guildId: currentProfile.mjGuildId }
+                    ? { mjPlayerSheets: true }
                     : { ownerId: getCurrentUserId() };
             }
             return {};
@@ -791,6 +797,10 @@
                     const queryOptions = getHomeSheetQueryOptions();
                     if (queryOptions.adminAllSheets) {
                         await renderAdminAllSheetsPanel({ targetId: 'homeSheetList' });
+                        return;
+                    }
+                    if (queryOptions.mjPlayerSheets) {
+                        await renderMjPlayerSheetsPanel({ targetId: 'homeSheetList' });
                         return;
                     }
                     sheets = queryOptions.unguildedOnly
@@ -1603,12 +1613,23 @@
                 }).join('')}`;
         }
 
-        function renderAdminSheetsRows(list, sheets, append = false) {
+        function mjOwnerFilterOptions(profiles, selectedId = '') {
+            const activeProfiles = profiles.filter(profile => !profile.isDisabled && profile.id !== getCurrentUserId());
+            return `<option value="" ${selectedId === '' ? 'selected' : ''}>Tous les joueurs</option>
+                ${activeProfiles.map((profile) => {
+                    const selected = profile.id === selectedId ? 'selected' : '';
+                    return `<option value="${profile.id}" ${selected}>${escapeHtml(profile.pseudo || profile.email || 'Pseudo inconnu')}</option>`;
+                }).join('')}`;
+        }
+
+        function renderCompactSheetRows(list, sheets, append = false, options = {}) {
+            const rowsTestId = options.rowTestId || 'admin-sheet-row';
+            const rowsContainerTestId = options.rowsContainerTestId || 'admin-sheets-rows';
             const rowsHtml = sheets.map((sheet) => {
                 const date = new Date(sheet.savedAt).toLocaleString('fr-FR');
                 const owner = escapeHtml(sheet.ownerPseudo || 'Pseudo inconnu');
                 const guild = sheet.guildName ? escapeHtml(sheet.guildName) : 'Sans guilde';
-                return `<div data-testid="admin-sheet-row" class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#002e33] border border-[#004e53] rounded p-3">
+                return `<div data-testid="${rowsTestId}" class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#002e33] border border-[#004e53] rounded p-3">
                     <div class="min-w-0">
                         <div class="text-[#00f0ff] font-bold truncate">${escapeHtml(sheet.name || 'Sans nom')}</div>
                         <div class="text-gray-400 text-xs mt-1">Joueur : ${owner}</div>
@@ -1621,9 +1642,13 @@
                 </div>`;
             }).join('');
 
-            const rowsContainer = list.querySelector('[data-testid="admin-sheets-rows"]');
+            const rowsContainer = list.querySelector(`[data-testid="${rowsContainerTestId}"]`);
             if (!rowsContainer) return;
             rowsContainer.innerHTML = append ? rowsContainer.innerHTML + rowsHtml : rowsHtml;
+        }
+
+        function renderAdminSheetsRows(list, sheets, append = false) {
+            renderCompactSheetRows(list, sheets, append);
         }
 
         async function renderAdminAllSheetsPanel(options = {}) {
@@ -1706,6 +1731,100 @@
                 console.error('[admin:sheets]', error);
                 list.innerHTML = '<p class="text-red-400 text-xs uppercase tracking-widest py-4">Erreur de chargement</p>';
             }
+        }
+
+        async function renderMjPlayerSheetsPanel(options = {}) {
+            const targetId = options.targetId || 'homeSheetList';
+            const list = document.getElementById(targetId);
+            if (!list || currentProfile?.role !== 'mj') return;
+            const append = !!options.append;
+
+            if (!append) {
+                mjPlayerSheetsOffset = 0;
+                mjPlayerSheetsRows = [];
+                list.className = 'flex flex-col gap-3 mb-10 min-h-[160px]';
+                list.innerHTML = '<p class="text-gray-500 text-xs uppercase tracking-widest py-4">Chargement...</p>';
+            }
+
+            try {
+                const profiles = await AppCloud.listProfiles();
+                const rows = await AppCloud.mjListPlayerSheets({
+                    ownerId: mjPlayerSheetsFilters.ownerId || null,
+                    search: mjPlayerSheetsFilters.search || null,
+                    limit: mjPlayerSheetsPageSize,
+                    offset: mjPlayerSheetsOffset
+                });
+                const totalCount = rows[0]?.totalCount || (append ? mjPlayerSheetsRows.length : rows.length);
+                mjPlayerSheetsRows = append ? mjPlayerSheetsRows.concat(rows) : rows;
+                mjPlayerSheetsOffset = mjPlayerSheetsRows.length;
+                mjPlayerSheetsHasMore = mjPlayerSheetsRows.length < totalCount;
+
+                if (!append) {
+                    list.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-2 gap-3 bg-[#00141a] border border-[#004e53] rounded p-3">
+                        <label class="block">
+                            <span class="block text-xs uppercase text-gray-400 mb-1">Joueur</span>
+                            <select data-testid="mj-player-sheet-owner-filter" onchange="handleMjPlayerSheetFilterChange('ownerId', this.value)"
+                                    class="w-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-2 text-sm">
+                                ${mjOwnerFilterOptions(profiles, mjPlayerSheetsFilters.ownerId)}
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="block text-xs uppercase text-gray-400 mb-1">Recherche</span>
+                            <input data-testid="mj-player-sheet-search" type="search" value="${escapeHtml(mjPlayerSheetsFilters.search)}"
+                                   oninput="handleMjPlayerSheetSearchInput(this.value)"
+                                   placeholder="Nom du personnage"
+                                   class="w-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-2 text-sm">
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-gray-500 uppercase tracking-widest">
+                        <span data-testid="mj-player-sheet-count">${mjPlayerSheetsRows.length} / ${totalCount} fiche(s)</span>
+                    </div>
+                    <div data-testid="mj-player-sheets-rows" class="space-y-3"></div>
+                    <div class="flex justify-center pt-2">
+                        <button type="button" data-testid="mj-player-sheets-load-more" onclick="loadMoreMjPlayerSheets()"
+                                class="${mjPlayerSheetsHasMore ? '' : 'hidden'} bg-[#002e33] hover:bg-[#004e53] text-[#00f0ff] border border-[#004e53] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm transition-colors">
+                            Charger plus
+                        </button>
+                    </div>`;
+                }
+
+                renderCompactSheetRows(list, rows, append, {
+                    rowTestId: 'mj-player-sheet-row',
+                    rowsContainerTestId: 'mj-player-sheets-rows'
+                });
+                const countEl = list.querySelector('[data-testid="mj-player-sheet-count"]');
+                if (countEl) countEl.textContent = `${mjPlayerSheetsRows.length} / ${totalCount} fiche(s)`;
+                const loadMore = list.querySelector('[data-testid="mj-player-sheets-load-more"]');
+                if (loadMore) loadMore.classList.toggle('hidden', !mjPlayerSheetsHasMore);
+                const rowsContainer = list.querySelector('[data-testid="mj-player-sheets-rows"]');
+                if (rowsContainer && mjPlayerSheetsRows.length === 0) {
+                    rowsContainer.innerHTML = '<p class="text-gray-500 text-center py-6">Aucune fiche ne correspond aux filtres</p>';
+                }
+            } catch (error) {
+                console.error('[mj:sheets]', error);
+                list.innerHTML = '<p class="text-red-400 text-xs uppercase tracking-widest py-4">Erreur de chargement</p>';
+            }
+        }
+
+        async function handleMjPlayerSheetFilterChange(key, value) {
+            if (currentProfile?.role !== 'mj') return;
+            mjPlayerSheetsFilters = { ...mjPlayerSheetsFilters, [key]: value };
+            await renderMjPlayerSheetsPanel();
+        }
+
+        function handleMjPlayerSheetSearchInput(value) {
+            if (currentProfile?.role !== 'mj') return;
+            mjPlayerSheetsFilters = { ...mjPlayerSheetsFilters, search: String(value || '') };
+            if (mjPlayerSheetsSearchTimer) clearTimeout(mjPlayerSheetsSearchTimer);
+            mjPlayerSheetsSearchTimer = setTimeout(() => {
+                mjPlayerSheetsSearchTimer = null;
+                renderMjPlayerSheetsPanel();
+            }, 300);
+        }
+
+        async function loadMoreMjPlayerSheets() {
+            if (currentProfile?.role !== 'mj' || !mjPlayerSheetsHasMore) return;
+            await renderMjPlayerSheetsPanel({ append: true });
         }
 
         async function handleAdminSheetFilterChange(key, value) {
@@ -1990,6 +2109,9 @@
             handleAdminSheetFilterChange,
             handleAdminSheetSearchInput,
             loadMoreAdminSheets,
+            handleMjPlayerSheetFilterChange,
+            handleMjPlayerSheetSearchInput,
+            loadMoreMjPlayerSheets,
             handleAdminDisabledToggle,
             handleAdminAssignSheetGuild,
             handlePendingUnguildedGuildChange,

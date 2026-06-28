@@ -245,6 +245,19 @@
         return (data || []).map(mapAdminSheetRow);
     }
 
+    async function mjListPlayerSheets(filters = {}) {
+        const client = getClient();
+        if (!client) return [];
+        const { data, error } = await client.rpc('mj_list_player_sheets', {
+            filter_user_id: filters.ownerId || null,
+            search_name: filters.search || null,
+            limit_count: filters.limit || 50,
+            offset_count: filters.offset || 0
+        });
+        if (error) throw error;
+        return (data || []).map(mapAdminSheetRow);
+    }
+
     async function assignSheetGuild(sheetId, guildId) {
         const client = getClient();
         if (!client) throw new Error('Non connecte');
@@ -270,6 +283,7 @@
         setUserDisabled,
         listUnguildedSheets,
         adminListSheets,
+        mjListPlayerSheets,
         assignSheetGuild
     };
 })(window);

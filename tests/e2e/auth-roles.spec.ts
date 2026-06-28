@@ -212,6 +212,32 @@ async function installSupabaseMock(
                     error: null
                   };
                 }
+                if (name === 'mj_list_player_sheets') {
+                  const profile = currentProfile();
+                  if (!profile || profile.role !== 'mj' || profile.disabled_at) return { data: [], error: null };
+                  const search = String(params.search_name || '').trim().toLowerCase();
+                  let rows = state.sheets
+                    .filter(ownerIsActive)
+                    .filter((sheet) => sheet.guild_id === profile.mj_guild_id)
+                    .filter((sheet) => sheet.user_id !== profile.id)
+                    .filter((sheet) => !params.filter_user_id || sheet.user_id === params.filter_user_id)
+                    .filter((sheet) => !search || String(sheet.name || '').toLowerCase().includes(search))
+                    .sort((a, b) => String(b.saved_at).localeCompare(String(a.saved_at)));
+                  const total = rows.length;
+                  rows = rows.slice(params.offset_count || 0, (params.offset_count || 0) + (params.limit_count || 50));
+                  return {
+                    data: rows.map((sheet) => ({
+                      id: sheet.id,
+                      name: sheet.name,
+                      saved_at: sheet.saved_at,
+                      user_id: sheet.user_id,
+                      guild_id: sheet.guild_id || null,
+                      owner_pseudo: state.profiles.find((item) => item.id === sheet.user_id)?.pseudo || null,
+                      total_count: total
+                    })),
+                    error: null
+                  };
+                }
                 if (name === 'complete_profile') {
                   let profile = state.profiles.find((item) => item.id === state.session.user.id);
                   if (!profile) {
@@ -310,7 +336,8 @@ test.describe('Auth profiles and roles', () => {
       session: { user: { id: 'gm-1', email: 'gm@example.com' } },
       profiles: [
         { id: 'gm-1', email: 'gm@example.com', pseudo: 'Le MJ', role: 'mj', mj_guild_id: 'ordo_augustus' },
-        { id: 'player-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }
+        { id: 'player-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' },
+        { id: 'player-3', email: 'nova@example.com', pseudo: 'Nova', role: 'user' }
       ],
       sheets: [{
         id: 'sheet-own',
@@ -328,6 +355,14 @@ test.describe('Auth profiles and roles', () => {
         image_data: 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=',
         data: { char_name: 'Kara Venn', player_name: 'Kara', guild_name: 'Ordo Augustus' }
       }, {
+        id: 'sheet-3',
+        name: 'Nova Sol',
+        saved_at: '2026-06-28T12:30:00.000Z',
+        user_id: 'player-3',
+        guild_id: 'ordo_augustus',
+        image_data: 'data:image/svg+xml;base64,PG5vdmE+',
+        data: { char_name: 'Nova Sol', player_name: 'Nova', guild_name: 'Ordo Augustus' }
+      }, {
         id: 'sheet-2',
         name: 'Voss Rae',
         saved_at: '2026-06-28T13:00:00.000Z',
@@ -343,12 +378,30 @@ test.describe('Auth profiles and roles', () => {
     await expect(page.locator('#homeSheetList')).toContainText('MJ Perso');
     await expect(page.locator('#homeSheetList')).not.toContainText('Kara Venn');
 
+    await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      state.selects = [];
+    });
     await page.getByTestId('home-sheet-tab-players').click();
+    await expect(page.getByTestId('mj-player-sheet-owner-filter')).toBeVisible();
+    await expect(page.getByTestId('mj-player-sheet-search')).toBeVisible();
+    await expect(page.getByTestId('mj-player-sheet-count')).toHaveText('2 / 2 fiche(s)');
     await expect(page.locator('#homeSheetList')).toContainText('Joueur : Kara');
     await expect(page.locator('#homeSheetList')).toContainText('Kara Venn');
+    await expect(page.locator('#homeSheetList')).toContainText('Joueur : Nova');
+    await expect(page.locator('#homeSheetList')).toContainText('Nova Sol');
     await expect(page.locator('#homeSheetList')).not.toContainText('MJ Perso');
     await expect(page.locator('#homeSheetList')).not.toContainText('Voss Rae');
-    await expect(page.locator('#homeSheetList img')).toHaveAttribute('src', 'data:image/svg+xml;base64,PHN2Zz48L3N2Zz4=');
+    await expect(page.locator('#homeSheetList img')).toHaveCount(0);
+
+    await page.getByTestId('mj-player-sheet-owner-filter').selectOption('player-1');
+    await expect(page.getByTestId('mj-player-sheet-count')).toHaveText('1 / 1 fiche(s)');
+    await expect(page.locator('#homeSheetList')).toContainText('Kara Venn');
+    await expect(page.locator('#homeSheetList')).not.toContainText('Nova Sol');
+
+    await page.getByTestId('mj-player-sheet-search').fill('kara');
+    await page.waitForTimeout(350);
+    await expect(page.locator('#homeSheetList')).toContainText('Kara Venn');
 
     const sheetListSelects = await page.evaluate(() => {
       const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
@@ -356,12 +409,13 @@ test.describe('Auth profiles and roles', () => {
         .filter((entry: any) => entry.table === 'sheets')
         .map((entry: any) => entry.columns);
     });
-    expect(sheetListSelects).toContain('id, name, saved_at, user_id, guild_id');
-    expect(sheetListSelects).toContain('image_data');
+    expect(sheetListSelects).not.toContain('image_data');
+    expect(sheetListSelects).not.toContain('*');
+    expect(sheetListSelects).not.toContain('id, name, saved_at, user_id, guild_id');
     expect(sheetListSelects).not.toContain('id, name, saved_at, image_data, user_id, guild_id');
     expect(sheetListSelects).not.toContain('id, name, saved_at, data, user_id, guild_id');
 
-    await page.getByText('Ouvrir').click();
+    await page.getByTestId('mj-player-sheet-row').filter({ hasText: 'Kara Venn' }).getByText('Ouvrir').click();
     await expect(page.locator('#char_name')).toHaveValue('Kara Venn');
     await expect(page.locator('#char_name')).toBeDisabled();
     await expect(page.locator('#sheetBackButton')).toContainText('Retour');
