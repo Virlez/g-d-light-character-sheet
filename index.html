@@ -123,6 +123,21 @@
         </div>
     </div>
 
+    <div id="disabledAccountView" data-testid="disabled-account-view" class="w-full max-w-sm relative z-10 hidden py-8">
+        <div class="text-center mb-8">
+            <h1 class="text-4xl text-[#00f0ff] drop-shadow-[0_0_10px_rgba(0,240,255,0.6)] font-bold uppercase tracking-widest">Datapad Personnel</h1>
+            <p class="text-sm tracking-widest text-gray-400 mt-2">ACCES SUSPENDU</p>
+        </div>
+        <div class="bg-[#001a1f] border border-red-900/70 rounded-lg p-6 text-center">
+            <p class="text-red-400 uppercase tracking-widest text-sm font-bold">Compte desactive</p>
+            <p class="text-gray-400 text-sm mt-3">Ce compte ne peut plus acceder a l'application. Les fiches associees ne sont plus visibles dans les listes.</p>
+            <button onclick="handleLogout()"
+                    class="mt-5 bg-[#002e33] hover:bg-red-900/40 text-red-300 px-5 py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-sm border border-red-900/70">
+                Deconnexion
+            </button>
+        </div>
+    </div>
+
     <div id="homeView" class="w-full max-w-5xl relative z-10 hidden py-6">
         <header class="mb-10 border-b-2 border-[#004e53] pb-6">
             <div class="text-center">
@@ -141,10 +156,19 @@
         </div>
         <section id="adminPanel" data-testid="admin-panel" class="hidden mb-10 border border-[#004e53] bg-[#001a1f] rounded-lg p-4">
             <div class="flex items-center justify-between border-b border-[#004e53] pb-3 mb-3">
-                <h2 class="text-[#00f0ff] font-bold uppercase tracking-widest text-lg">Admin</h2>
+                <h2 class="text-[#00f0ff] font-bold uppercase tracking-widest text-lg">Administration</h2>
                 <button onclick="toggleAdminPanel(false)" class="text-gray-400 hover:text-white text-xl leading-none font-bold">&#x2715;</button>
             </div>
+            <div class="flex flex-wrap gap-2 mb-4">
+                <button id="adminUsersTab" type="button" onclick="switchAdminTab('users')" class="px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded">
+                    Utilisateurs
+                </button>
+                <button id="adminUnguildedTab" type="button" onclick="switchAdminTab('unguilded')" class="px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 rounded">
+                    Fiches sans guilde
+                </button>
+            </div>
             <div id="adminUserList" data-testid="admin-user-list" class="space-y-3"></div>
+            <div id="adminUnguildedList" data-testid="admin-unguilded-list" class="hidden space-y-3"></div>
         </section>
         <div class="flex flex-wrap justify-center gap-4 pt-4 border-t border-[#004e53]">
             <button onclick="newSheet()"

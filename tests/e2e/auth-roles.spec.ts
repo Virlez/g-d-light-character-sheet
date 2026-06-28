@@ -7,6 +7,7 @@ type MockProfile = {
   email?: string;
   role: 'user' | 'mj' | 'admin';
   mj_guild_id?: string | null;
+  disabled_at?: string | null;
 };
 
 type MockSheet = {
@@ -128,9 +129,19 @@ async function installSupabaseMock(
               return state.session ? state.profiles.find((profile) => profile.id === state.session.user.id) : null;
             }
 
+            function isProfileActive(profile) {
+              return !!profile && !profile.disabled_at;
+            }
+
+            function ownerIsActive(row) {
+              return isProfileActive(state.profiles.find((profile) => profile.id === row.user_id));
+            }
+
             function applySheetRls(table, rows) {
               if (table !== 'sheets' || !state.session) return rows;
               const profile = currentProfile();
+              if (!isProfileActive(profile)) return [];
+              rows = rows.filter(ownerIsActive);
               if (profile && profile.role === 'admin') return rows;
               if (profile && profile.role === 'mj') {
                 return rows.filter((row) => row.user_id === state.session.user.id || row.guild_id === profile.mj_guild_id);
@@ -172,6 +183,11 @@ async function installSupabaseMock(
                     profile.role = params.new_role;
                     profile.mj_guild_id = params.new_role === 'mj' ? params.new_mj_guild_id : null;
                   }
+                  return { data: profile || null, error: null };
+                }
+                if (name === 'admin_set_user_disabled') {
+                  const profile = state.profiles.find((item) => item.id === params.target_user_id);
+                  if (profile) profile.disabled_at = params.disabled ? '2026-06-28T12:00:00.000Z' : null;
                   return { data: profile || null, error: null };
                 }
                 if (name === 'admin_assign_sheet_guild') {
@@ -226,6 +242,23 @@ test.describe('Auth profiles and roles', () => {
 
     await expect(page.locator('#homeView')).toBeVisible();
     await expect(page.locator('#homeUserName')).toHaveText('Kara');
+  });
+
+  test('blocks a disabled account after login', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'user-1', email: 'player@example.com' } },
+      profiles: [{
+        id: 'user-1',
+        email: 'player@example.com',
+        pseudo: 'Kara',
+        role: 'user',
+        disabled_at: '2026-06-28T12:00:00.000Z'
+      }]
+    });
+
+    await page.goto('/');
+    await expect(page.getByTestId('disabled-account-view')).toBeVisible();
+    await expect(page.locator('#homeView')).toBeHidden();
   });
 
   test('opens a same-guild sheet read-only for a MJ', async ({ page }) => {
@@ -305,6 +338,58 @@ test.describe('Auth profiles and roles', () => {
     await expect(page.getByTestId('admin-role-select')).toHaveCount(2);
   });
 
+  test('lets an admin disable and reactivate a user account', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'admin-1', email: 'admin@example.com' } },
+      profiles: [
+        { id: 'admin-1', email: 'admin@example.com', pseudo: 'Admin', role: 'admin' },
+        { id: 'player-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }
+      ],
+      sheets: [{
+        id: 'sheet-1',
+        name: 'Sans Guilde',
+        saved_at: '2026-06-28T12:00:00.000Z',
+        user_id: 'player-1',
+        guild_id: null,
+        data: { char_name: 'Sans Guilde' }
+      }]
+    });
+
+    await page.goto('/');
+    await page.locator('#adminPanelToggle').click();
+    const playerRow = page.getByTestId('admin-user-row').filter({ hasText: 'Kara' });
+    await expect(playerRow).toContainText('Actif');
+
+    page.once('dialog', async (dialog) => {
+      expect(dialog.message()).toContain('Desactiver le compte de Kara');
+      await dialog.accept();
+    });
+    await playerRow.getByTestId('admin-disable-toggle').click();
+    await expect(playerRow).toContainText('Desactive');
+
+    let profile = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.profiles.find((item: any) => item.id === 'player-1');
+    });
+    expect(profile.disabled_at).toBeTruthy();
+
+    await page.getByTestId('home-sheet-tab-unguilded').click();
+    await expect(page.locator('#homeSheetList')).not.toContainText('Sans Guilde');
+
+    page.once('dialog', async (dialog) => {
+      expect(dialog.message()).toContain('Reactiver le compte de Kara');
+      await dialog.accept();
+    });
+    await page.getByTestId('admin-user-row').filter({ hasText: 'Kara' }).getByTestId('admin-disable-toggle').click();
+    await expect(page.getByTestId('admin-user-row').filter({ hasText: 'Kara' })).toContainText('Actif');
+
+    profile = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.profiles.find((item: any) => item.id === 'player-1');
+    });
+    expect(profile.disabled_at).toBeNull();
+  });
+
   test('lets an admin assign a MJ guild and classify unguilded sheets', async ({ page }) => {
     await installSupabaseMock(page, {
       session: { user: { id: 'admin-1', email: 'admin@example.com' } },
@@ -348,7 +433,6 @@ test.describe('Auth profiles and roles', () => {
     expect(gmProfile.role).toBe('mj');
     expect(gmProfile.mj_guild_id).toBe('arcanum_astralis');
 
-    await page.locator('#adminPanel button').click();
     await page.getByTestId('home-sheet-tab-unguilded').click();
     await expect(page.getByTestId('home-unguilded-row')).toContainText('Sans Guilde');
     await expect(page.getByTestId('home-unguilded-row')).toContainText('Joueur : Kara');
@@ -402,6 +486,10 @@ test.describe('Auth profiles and roles', () => {
     await page.locator('#char_name').fill('Kara Venn');
     await page.locator('#guild_name').selectOption('Arcanum Astralis');
     await page.getByTestId('photo-upload-input').setInputFiles(portraitFixture);
+    await expect(page.getByTestId('photo-preview')).not.toHaveClass(/hidden/);
+    await expect.poll(async () => {
+      return page.getByTestId('photo-preview').evaluate((element) => (element as HTMLElement).style.backgroundImage);
+    }).toContain('data:image');
     await Promise.all([
       page.waitForEvent('dialog').then((dialog) => dialog.accept()),
       page.evaluate(async () => {

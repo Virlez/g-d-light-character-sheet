@@ -40,8 +40,9 @@ Apply the Supabase migrations in order before deploying the pseudo/MJ/admin/guil
 - `supabase/migrations/20260628120000_profiles_roles.sql`
 - `supabase/migrations/20260628130000_guilds_and_scoped_mj.sql`
 - `supabase/migrations/20260628140000_sheet_list_columns.sql`
+- `supabase/migrations/20260628150000_disable_profiles.sql`
 
-They create user profiles, guilds, role-aware RLS policies, and the RPCs used by the app.
+They create user profiles, guilds, role-aware RLS policies, lightweight list columns, account disabling, and the RPCs used by the app.
 
 After applying it, promote the first admin manually:
 

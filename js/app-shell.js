@@ -411,6 +411,7 @@
             renderHomeView();
             document.getElementById('authView')?.classList.add('hidden');
             document.getElementById('profileSetupView')?.classList.add('hidden');
+            document.getElementById('disabledAccountView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.remove('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
@@ -420,6 +421,7 @@
         function showSheetView() {
             document.getElementById('authView')?.classList.add('hidden');
             document.getElementById('profileSetupView')?.classList.add('hidden');
+            document.getElementById('disabledAccountView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.remove('hidden');
             document.getElementById('fabMenu')?.classList.remove('hidden');
@@ -808,6 +810,7 @@
         function showAuthView() {
             document.getElementById('authView')?.classList.remove('hidden');
             document.getElementById('profileSetupView')?.classList.add('hidden');
+            document.getElementById('disabledAccountView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
@@ -817,6 +820,17 @@
         function showProfileSetupView() {
             document.getElementById('authView')?.classList.add('hidden');
             document.getElementById('profileSetupView')?.classList.remove('hidden');
+            document.getElementById('disabledAccountView')?.classList.add('hidden');
+            document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('sheetView')?.classList.add('hidden');
+            document.getElementById('fabMenu')?.classList.add('hidden');
+            closeFabMenu();
+        }
+
+        function showDisabledAccountView() {
+            document.getElementById('authView')?.classList.add('hidden');
+            document.getElementById('profileSetupView')?.classList.add('hidden');
+            document.getElementById('disabledAccountView')?.classList.remove('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
@@ -858,6 +872,10 @@
         async function ensureProfileReady() {
             if (!isLoggedIn()) return true;
             const profile = await refreshCurrentProfile();
+            if (profile?.isDisabled) {
+                showDisabledAccountView();
+                return false;
+            }
             if (!profile || !profile.pseudo) {
                 showProfileSetupView();
                 return false;
@@ -1375,9 +1393,26 @@
                     const email = profile.email ? escapeHtml(profile.email) : 'Email indisponible';
                     const role = profile.role || 'user';
                     const selectedGuildId = profile.mjGuildId || AppGuilds?.GUILDS[0]?.id || '';
-                    return `<div class="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-[#002e33] border border-[#004e53] rounded p-3">
+                    const isDisabled = !!profile.isDisabled;
+                    const self = profile.id === getCurrentUserId();
+                    const statusHtml = isDisabled
+                        ? '<span class="text-[10px] uppercase tracking-widest border border-red-900/70 text-red-300 px-2 py-0.5 rounded">Desactive</span>'
+                        : '<span class="text-[10px] uppercase tracking-widest border border-[#004e53] text-gray-400 px-2 py-0.5 rounded">Actif</span>';
+                    const disableButtonLabel = isDisabled ? 'Reactiver' : 'Desactiver';
+                    const disableButtonClass = isDisabled
+                        ? 'border-[#004e53] text-[#00f0ff] hover:bg-[#004e53]'
+                        : 'border-red-900/70 text-red-300 hover:bg-red-900/30';
+                    const disableButton = self
+                        ? '<button type="button" disabled class="border border-[#004e53] text-gray-600 rounded px-3 py-1 text-sm cursor-not-allowed">Compte actuel</button>'
+                        : `<button type="button" data-testid="admin-disable-toggle" onclick="handleAdminDisabledToggle('${profile.id}', ${isDisabled ? 'false' : 'true'})"
+                                  class="${disableButtonClass} rounded px-3 py-1 text-sm transition-colors">${disableButtonLabel}</button>`;
+                    return `<div data-testid="admin-user-row" class="flex flex-col gap-3 bg-[#002e33] border ${isDisabled ? 'border-red-900/60 opacity-75' : 'border-[#004e53]'} rounded p-3">
+                        <div class="flex flex-col md:flex-row md:items-center gap-3 justify-between">
                         <div class="min-w-0">
-                            <div class="text-[#00f0ff] font-bold truncate">${pseudo}</div>
+                            <div class="flex items-center gap-2 min-w-0">
+                                <div data-testid="admin-user-pseudo" class="text-[#00f0ff] font-bold truncate">${pseudo}</div>
+                                ${statusHtml}
+                            </div>
                             <div class="text-gray-500 text-xs truncate">${email}</div>
                         </div>
                         <div class="flex flex-col sm:flex-row gap-2">
@@ -1393,6 +1428,8 @@
                                     class="${role === 'mj' ? '' : 'hidden'} bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                                 ${guildOptionsHtml(selectedGuildId)}
                             </select>
+                            ${disableButton}
+                        </div>
                         </div>
                     </div>`;
                 }).join('');
@@ -1471,6 +1508,35 @@
             } catch (error) {
                 console.error('[admin:role]', error);
                 alert('Erreur lors du changement de role.');
+                await renderAdminPanel();
+            }
+        }
+
+        async function handleAdminDisabledToggle(userId, disabled) {
+            if (!isAdminRole()) return;
+            if (userId === getCurrentUserId()) return;
+
+            const row = document.getElementById(`role-${userId}`)?.closest('[data-testid="admin-user-row"]');
+            const pseudo = row?.querySelector('[data-testid="admin-user-pseudo"]')?.textContent?.trim() || 'cet utilisateur';
+            const message = disabled
+                ? `Desactiver le compte de ${pseudo} ?\n\nCe compte ne pourra plus acceder a l application et ses fiches seront masquees des listes.`
+                : `Reactiver le compte de ${pseudo} ?\n\nCe compte pourra de nouveau acceder a l application.`;
+
+            if (!confirm(message)) return;
+
+            const button = row?.querySelector('[data-testid="admin-disable-toggle"]');
+            if (button) {
+                button.disabled = true;
+                button.textContent = disabled ? 'Desactivation...' : 'Reactivation...';
+            }
+
+            try {
+                await AppCloud.setUserDisabled(userId, disabled);
+                await renderAdminPanel();
+                await renderHomeView();
+            } catch (error) {
+                console.error('[admin:disable]', error);
+                alert(disabled ? 'Erreur lors de la desactivation.' : 'Erreur lors de la reactivation.');
                 await renderAdminPanel();
             }
         }
@@ -1651,6 +1717,7 @@
             toggleAdminPanel,
             switchAdminTab,
             handleAdminRoleChange,
+            handleAdminDisabledToggle,
             handleAdminAssignSheetGuild,
             handlePendingUnguildedGuildChange,
             applyPendingUnguildedGuildAssignments,

@@ -37,7 +37,9 @@
             email: profile.email,
             role: profile.role || 'user',
             mjGuildId: profile.mj_guild_id || null,
-            mjGuildName: profile.mj_guild_id && AppGuilds ? AppGuilds.nameFromId(profile.mj_guild_id) : ''
+            mjGuildName: profile.mj_guild_id && AppGuilds ? AppGuilds.nameFromId(profile.mj_guild_id) : '',
+            disabledAt: profile.disabled_at || null,
+            isDisabled: !!profile.disabled_at
         };
     }
 
@@ -141,7 +143,7 @@
 
         const { data, error } = await client
             .from('profiles')
-            .select('id, pseudo, email, role, mj_guild_id')
+            .select('id, pseudo, email, role, mj_guild_id, disabled_at')
             .eq('id', userId)
             .maybeSingle();
         if (error) throw error;
@@ -161,7 +163,7 @@
         if (!client) return [];
         const { data, error } = await client
             .from('profiles')
-            .select('id, pseudo, email, role, mj_guild_id')
+            .select('id, pseudo, email, role, mj_guild_id, disabled_at')
             .order('pseudo', { ascending: true, nullsFirst: false });
         if (error) throw error;
         return (data || []).map(mapProfile);
@@ -174,6 +176,17 @@
             target_user_id: userId,
             new_role: role,
             new_mj_guild_id: role === 'mj' ? mjGuildId : null
+        });
+        if (error) throw error;
+        return data;
+    }
+
+    async function setUserDisabled(userId, disabled) {
+        const client = getClient();
+        if (!client) throw new Error('Non connecte');
+        const { data, error } = await client.rpc('admin_set_user_disabled', {
+            target_user_id: userId,
+            disabled
         });
         if (error) throw error;
         return data;
@@ -217,6 +230,7 @@
         completeProfile,
         listProfiles,
         setUserRole,
+        setUserDisabled,
         listUnguildedSheets,
         assignSheetGuild
     };
