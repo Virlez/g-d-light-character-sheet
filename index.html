@@ -191,9 +191,9 @@
 
     <div id="sheetView" class="w-full max-w-5xl relative z-10 hidden">
         <div class="no-print py-2 mb-1">
-            <button onclick="showHomeView()"
+            <button id="sheetBackButton" onclick="showHomeView()"
                     class="text-[#00f0ff] hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-colors opacity-60 hover:opacity-100">
-                &#x2190; Mes fiches
+                &#x2190; <span id="sheetBackButtonLabel">Mes fiches</span>
             </button>
         </div>
 

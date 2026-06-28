@@ -362,6 +362,7 @@ test.describe('Auth profiles and roles', () => {
     await page.getByText('Ouvrir').click();
     await expect(page.locator('#char_name')).toHaveValue('Kara Venn');
     await expect(page.locator('#char_name')).toBeDisabled();
+    await expect(page.locator('#sheetBackButton')).toContainText('Retour');
     await expect(page.getByTestId('import-json-button')).toBeHidden();
   });
 
@@ -599,6 +600,7 @@ test.describe('Auth profiles and roles', () => {
     await page.getByTestId('admin-sheet-row').filter({ hasText: 'Langer Hakar' }).getByText('Ouvrir').click();
     await expect(page.locator('#char_name')).toHaveValue('Langer Hakar');
     await expect(page.locator('#char_name')).toBeDisabled();
+    await expect(page.locator('#sheetBackButton')).toContainText('Retour');
   });
 
   test('saves the selected character guild as guild_id in cloud storage', async ({ page }) => {

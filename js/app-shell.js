@@ -427,6 +427,10 @@
         }
 
         function showSheetView() {
+            const backLabel = document.getElementById('sheetBackButtonLabel');
+            if (backLabel) {
+                backLabel.textContent = canEditSheet(currentSheetOwnerId) ? 'Mes fiches' : 'Retour';
+            }
             document.getElementById('authView')?.classList.add('hidden');
             document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('disabledAccountView')?.classList.add('hidden');
