@@ -66,6 +66,10 @@
         return _withAuthRetry(() => client.auth.signInWithPassword({ email, password }));
     }
 
+    async function reauthenticate(email, password) {
+        return signIn(email, password);
+    }
+
     async function signUp(email, password, pseudo) {
         const client = getClient();
         if (!client) throw new Error('Supabase non configuré');
@@ -170,6 +174,12 @@
         return _withAuthRetry(() => client.auth.updateUser({ password }));
     }
 
+    async function updateEmail(email) {
+        const client = getClient();
+        if (!client) throw new Error('Supabase non configuré');
+        return _withAuthRetry(() => client.auth.updateUser({ email }));
+    }
+
     async function signOut() {
         const client = getClient();
         if (!client) return;
@@ -189,9 +199,11 @@
         getCurrentUser,
         consumeAuthRedirect,
         signIn,
+        reauthenticate,
         signUp,
         resetPassword,
         updatePassword,
+        updateEmail,
         signOut,
         onAuthStateChange
     };

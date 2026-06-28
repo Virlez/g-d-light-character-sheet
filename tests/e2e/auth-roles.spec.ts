@@ -35,7 +35,10 @@ async function installSupabaseMock(
     upsertRows: [] as unknown[],
     queryCounts: { profiles: 0, sheets: 0 },
     selects: [] as Array<{ table: string; columns: string }>,
-    signUpPayload: null as unknown
+    signUpPayload: null as unknown,
+    signInPayloads: [] as unknown[],
+    updateUserPayloads: [] as unknown[],
+    signOutCount: 0
   };
 
   await page.route('https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2', async (route) => {
@@ -153,14 +156,29 @@ async function installSupabaseMock(
               auth: {
                 getSession: async () => ({ data: { session: state.session }, error: null }),
                 getUser: async () => ({ data: { user: state.session ? state.session.user : null }, error: null }),
-                signInWithPassword: async () => ({ data: { session: state.session }, error: null }),
+                signInWithPassword: async (payload) => {
+                  state.signInPayloads.push(payload);
+                  if (payload.password === 'wrong-password') {
+                    return { data: {}, error: { message: 'Invalid login credentials', status: 400 } };
+                  }
+                  return { data: { session: state.session }, error: null };
+                },
                 signUp: async (payload) => {
                   state.signUpPayload = payload;
                   return { data: { user: { id: 'new-user', email: payload.email } }, error: null };
                 },
                 resetPasswordForEmail: async () => ({ data: {}, error: null }),
-                updateUser: async () => ({ data: {}, error: null }),
+                updateUser: async (payload) => {
+                  state.updateUserPayloads.push(payload);
+                  if (payload.email && state.session) {
+                    state.session.user.email = payload.email;
+                    const profile = currentProfile();
+                    if (profile) profile.email = payload.email;
+                  }
+                  return { data: { user: state.session ? state.session.user : null }, error: null };
+                },
                 signOut: async () => {
+                  state.signOutCount += 1;
                   state.session = null;
                   return { error: null };
                 },
@@ -329,6 +347,65 @@ test.describe('Auth profiles and roles', () => {
     await page.goto('/');
     await expect(page.getByTestId('disabled-account-view')).toBeVisible();
     await expect(page.locator('#homeView')).toBeHidden();
+  });
+
+  test('lets a connected user update their email after password verification', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'user-1', email: 'player@example.com' } },
+      profiles: [{ id: 'user-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }]
+    });
+
+    await page.goto('/');
+    await page.locator('#homeUserName').click();
+    await expect(page.getByTestId('account-modal')).toBeVisible();
+
+    await page.locator('#accountNewEmail').fill('new@example.com');
+    await page.locator('#accountEmailCurrentPassword').fill('Password1!');
+    await page.getByTestId('account-email-form').locator('button[type="submit"]').click();
+
+    await expect(page.locator('#accountEmailMessage')).toContainText('Demande envoyee');
+    const state = await page.evaluate(() => (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState);
+    expect(state.signInPayloads).toContainEqual({ email: 'player@example.com', password: 'Password1!' });
+    expect(state.updateUserPayloads).toContainEqual({ email: 'new@example.com' });
+  });
+
+  test('does not update account data when current password is invalid', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'user-1', email: 'player@example.com' } },
+      profiles: [{ id: 'user-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }]
+    });
+
+    await page.goto('/');
+    await page.locator('#homeUserName').click();
+    await page.locator('#accountNewEmail').fill('new@example.com');
+    await page.locator('#accountEmailCurrentPassword').fill('wrong-password');
+    await page.getByTestId('account-email-form').locator('button[type="submit"]').click();
+
+    await expect(page.locator('#accountEmailMessage')).toContainText('E-mail ou mot de passe incorrect');
+    const state = await page.evaluate(() => (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState);
+    expect(state.signInPayloads).toContainEqual({ email: 'player@example.com', password: 'wrong-password' });
+    expect(state.updateUserPayloads).toEqual([]);
+  });
+
+  test('lets a connected user update their password then signs them out', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'user-1', email: 'player@example.com' } },
+      profiles: [{ id: 'user-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }]
+    });
+
+    await page.goto('/');
+    await page.locator('#homeUserName').click();
+    await page.locator('#accountPasswordCurrentPassword').fill('Password1!');
+    await page.locator('#accountNewPassword').fill('NewPassword1!');
+    await page.locator('#accountNewPasswordConfirm').fill('NewPassword1!');
+    await page.getByTestId('account-password-form').locator('button[type="submit"]').click();
+
+    await expect(page.locator('#authView')).toBeVisible();
+    await expect(page.locator('#authMessage')).toContainText('Mot de passe mis a jour');
+    const state = await page.evaluate(() => (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState);
+    expect(state.signInPayloads).toContainEqual({ email: 'player@example.com', password: 'Password1!' });
+    expect(state.updateUserPayloads).toContainEqual({ password: 'NewPassword1!' });
+    expect(state.signOutCount).toBe(1);
   });
 
   test('opens a same-guild sheet read-only for a MJ', async ({ page }) => {

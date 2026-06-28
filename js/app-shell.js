@@ -996,6 +996,162 @@
                 : 'mt-3 text-xs text-[#00f0ff]';
         }
 
+        function setAccountMessage(target, text, tone) {
+            const msgEl = document.getElementById(target);
+            if (!msgEl) return;
+            if (!text) {
+                msgEl.textContent = '';
+                msgEl.className = 'mt-3 text-xs hidden';
+                return;
+            }
+
+            msgEl.textContent = text;
+            msgEl.className = tone === 'error'
+                ? 'mt-3 text-xs text-red-400'
+                : 'mt-3 text-xs text-[#00f0ff]';
+        }
+
+        function currentAccountEmail() {
+            return window.__currentSession?.user?.email || currentProfile?.email || '';
+        }
+
+        function resetAccountForms() {
+            ['accountNewEmail', 'accountEmailCurrentPassword', 'accountPasswordCurrentPassword', 'accountNewPassword', 'accountNewPasswordConfirm']
+                .forEach((id) => {
+                    const input = document.getElementById(id);
+                    if (input) input.value = '';
+                });
+            setAccountMessage('accountEmailMessage', '', 'info');
+            setAccountMessage('accountPasswordMessage', '', 'info');
+        }
+
+        function openAccountModal() {
+            if (!isLoggedIn()) return;
+            const modal = document.getElementById('accountModal');
+            const emailEl = document.getElementById('accountCurrentEmail');
+            const email = currentAccountEmail();
+            resetAccountForms();
+            if (emailEl) emailEl.textContent = email ? `E-mail actuel : ${email}` : 'E-mail actuel indisponible';
+            if (modal) {
+                modal.classList.remove('hidden');
+                modal.classList.add('flex');
+            }
+        }
+
+        function closeAccountModal() {
+            const modal = document.getElementById('accountModal');
+            if (modal) {
+                modal.classList.add('hidden');
+                modal.classList.remove('flex');
+            }
+            resetAccountForms();
+        }
+
+        async function reauthenticateCurrentUser(password) {
+            const email = currentAccountEmail();
+            if (!email) throw new Error('E-mail courant indisponible.');
+            await AppAuth.reauthenticate(email, password);
+        }
+
+        async function handleAccountEmailSubmit(event) {
+            event.preventDefault();
+            const newEmail = document.getElementById('accountNewEmail')?.value.trim();
+            const currentPassword = document.getElementById('accountEmailCurrentPassword')?.value;
+            const submitBtn = document.getElementById('accountEmailSubmitBtn');
+
+            if (!newEmail) {
+                setAccountMessage('accountEmailMessage', 'Nouvel e-mail requis.', 'error');
+                return;
+            }
+            if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(newEmail)) {
+                setAccountMessage('accountEmailMessage', 'Adresse e-mail invalide.', 'error');
+                return;
+            }
+            if (!currentPassword) {
+                setAccountMessage('accountEmailMessage', 'Mot de passe actuel requis.', 'error');
+                return;
+            }
+            if (newEmail === currentAccountEmail()) {
+                setAccountMessage('accountEmailMessage', 'Ce nouvel e-mail est identique a l e-mail actuel.', 'error');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Verification...';
+            }
+            setAccountMessage('accountEmailMessage', '', 'info');
+
+            try {
+                await reauthenticateCurrentUser(currentPassword);
+                if (submitBtn) submitBtn.textContent = 'Mise a jour...';
+                await AppAuth.updateEmail(newEmail);
+                const passwordInput = document.getElementById('accountEmailCurrentPassword');
+                if (passwordInput) passwordInput.value = '';
+                setAccountMessage('accountEmailMessage', 'Demande envoyee. Verifiez vos e-mails pour confirmer le changement si Supabase le demande.', 'info');
+            } catch (error) {
+                console.error('[account:email]', error);
+                setAccountMessage('accountEmailMessage', formatAuthError(error, 'account'), 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = "Mettre a jour l'e-mail";
+                }
+            }
+        }
+
+        async function handleAccountPasswordSubmit(event) {
+            event.preventDefault();
+            const currentPassword = document.getElementById('accountPasswordCurrentPassword')?.value;
+            const newPassword = document.getElementById('accountNewPassword')?.value;
+            const confirmPassword = document.getElementById('accountNewPasswordConfirm')?.value;
+            const submitBtn = document.getElementById('accountPasswordSubmitBtn');
+
+            if (!currentPassword) {
+                setAccountMessage('accountPasswordMessage', 'Mot de passe actuel requis.', 'error');
+                return;
+            }
+            if (!newPassword) {
+                setAccountMessage('accountPasswordMessage', 'Nouveau mot de passe requis.', 'error');
+                return;
+            }
+            if (newPassword !== confirmPassword) {
+                setAccountMessage('accountPasswordMessage', 'La confirmation ne correspond pas.', 'error');
+                return;
+            }
+            if (newPassword === currentPassword) {
+                setAccountMessage('accountPasswordMessage', 'Le nouveau mot de passe doit etre different.', 'error');
+                return;
+            }
+
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.textContent = 'Verification...';
+            }
+            setAccountMessage('accountPasswordMessage', '', 'info');
+
+            try {
+                await reauthenticateCurrentUser(currentPassword);
+                if (submitBtn) submitBtn.textContent = 'Mise a jour...';
+                await AppAuth.updatePassword(newPassword);
+                await AppAuth.signOut();
+                window.__currentSession = null;
+                currentProfile = null;
+                closeAccountModal();
+                showAuthView();
+                setAuthMode('login');
+                setAuthMessage('Mot de passe mis a jour. Reconnectez-vous avec votre nouveau mot de passe.', 'info');
+            } catch (error) {
+                console.error('[account:password]', error);
+                setAccountMessage('accountPasswordMessage', formatAuthError(error, 'account'), 'error');
+            } finally {
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    submitBtn.textContent = 'Mettre a jour le mot de passe';
+                }
+            }
+        }
+
         function formatAuthError(error, context) {
             const directName = String(error?.name || '').toLowerCase();
             const directCode = String(error?.code || '').toLowerCase();
@@ -1347,6 +1503,7 @@
         }
 
         async function handleLogout() {
+            closeAccountModal();
             await AppAuth.signOut();
             // onAuthStateChange will fire SIGNED_OUT -> showAuthView()
         }
@@ -2100,6 +2257,10 @@
             handleForgotPassword,
             handleAuthSubmit,
             handleProfileSetupSubmit,
+            openAccountModal,
+            closeAccountModal,
+            handleAccountEmailSubmit,
+            handleAccountPasswordSubmit,
             continueWithoutAccount,
             handleLogout,
             handlePostSignIn,
