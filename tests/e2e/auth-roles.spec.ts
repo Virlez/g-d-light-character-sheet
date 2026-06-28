@@ -168,6 +168,50 @@ async function installSupabaseMock(
               },
               from: makeQuery,
               rpc: async (name, params) => {
+                if (name === 'list_visible_profiles') {
+                  const profile = currentProfile();
+                  if (profile && profile.role === 'admin' && !profile.disabled_at) {
+                    return { data: state.profiles.slice().sort((a, b) => String(a.pseudo || '').localeCompare(String(b.pseudo || ''))), error: null };
+                  }
+                  if (profile && profile.role === 'mj' && !profile.disabled_at) {
+                    const visibleOwnerIds = new Set(state.sheets
+                      .filter((sheet) => sheet.guild_id === profile.mj_guild_id)
+                      .map((sheet) => sheet.user_id));
+                    visibleOwnerIds.add(profile.id);
+                    return {
+                      data: state.profiles
+                        .filter((item) => visibleOwnerIds.has(item.id) && (item.id === profile.id || !item.disabled_at))
+                        .sort((a, b) => String(a.pseudo || '').localeCompare(String(b.pseudo || ''))),
+                      error: null
+                    };
+                  }
+                  return { data: profile ? [profile] : [], error: null };
+                }
+                if (name === 'admin_list_sheets') {
+                  const profile = currentProfile();
+                  if (!profile || profile.role !== 'admin' || profile.disabled_at) return { data: [], error: null };
+                  const search = String(params.search_name || '').trim().toLowerCase();
+                  let rows = state.sheets
+                    .filter(ownerIsActive)
+                    .filter((sheet) => !params.filter_guild_id || (params.filter_guild_id === '__none__' ? !sheet.guild_id : sheet.guild_id === params.filter_guild_id))
+                    .filter((sheet) => !params.filter_user_id || sheet.user_id === params.filter_user_id)
+                    .filter((sheet) => !search || String(sheet.name || '').toLowerCase().includes(search))
+                    .sort((a, b) => String(b.saved_at).localeCompare(String(a.saved_at)));
+                  const total = rows.length;
+                  rows = rows.slice(params.offset_count || 0, (params.offset_count || 0) + (params.limit_count || 50));
+                  return {
+                    data: rows.map((sheet) => ({
+                      id: sheet.id,
+                      name: sheet.name,
+                      saved_at: sheet.saved_at,
+                      user_id: sheet.user_id,
+                      guild_id: sheet.guild_id || null,
+                      owner_pseudo: state.profiles.find((item) => item.id === sheet.user_id)?.pseudo || null,
+                      total_count: total
+                    })),
+                    error: null
+                  };
+                }
                 if (name === 'complete_profile') {
                   let profile = state.profiles.find((item) => item.id === state.session.user.id);
                   if (!profile) {
@@ -321,7 +365,7 @@ test.describe('Auth profiles and roles', () => {
     await expect(page.getByTestId('import-json-button')).toBeHidden();
   });
 
-  test('shows the user role admin panel to admins', async ({ page }) => {
+  test('shows the user administration page to admins', async ({ page }) => {
     await installSupabaseMock(page, {
       session: { user: { id: 'admin-1', email: 'admin@example.com' } },
       profiles: [
@@ -333,9 +377,13 @@ test.describe('Auth profiles and roles', () => {
     await page.goto('/');
     await page.locator('#adminPanelToggle').click();
 
+    await expect(page.locator('#adminView')).toBeVisible();
+    await expect(page.locator('#homeView')).toBeHidden();
     await expect(page.getByTestId('admin-panel')).toBeVisible();
     await expect(page.getByTestId('admin-user-list')).toContainText('Kara');
     await expect(page.getByTestId('admin-role-select')).toHaveCount(2);
+    await expect(page.getByRole('button', { name: 'Fiches sans guilde' })).toHaveCount(0);
+    await expect(page.getByRole('button', { name: 'Toutes les fiches' })).toHaveCount(0);
   });
 
   test('lets an admin disable and reactivate a user account', async ({ page }) => {
@@ -373,8 +421,10 @@ test.describe('Auth profiles and roles', () => {
     });
     expect(profile.disabled_at).toBeTruthy();
 
+    await page.getByRole('button', { name: 'Mes fiches' }).click();
     await page.getByTestId('home-sheet-tab-unguilded').click();
     await expect(page.locator('#homeSheetList')).not.toContainText('Sans Guilde');
+    await page.locator('#adminPanelToggle').click();
 
     page.once('dialog', async (dialog) => {
       expect(dialog.message()).toContain('Reactiver le compte de Kara');
@@ -433,6 +483,7 @@ test.describe('Auth profiles and roles', () => {
     expect(gmProfile.role).toBe('mj');
     expect(gmProfile.mj_guild_id).toBe('arcanum_astralis');
 
+    await page.getByRole('button', { name: 'Mes fiches' }).click();
     await page.getByTestId('home-sheet-tab-unguilded').click();
     await expect(page.getByTestId('home-unguilded-row')).toContainText('Sans Guilde');
     await expect(page.getByTestId('home-unguilded-row')).toContainText('Joueur : Kara');
@@ -473,6 +524,81 @@ test.describe('Auth profiles and roles', () => {
     });
     expect(sheet.guild_id).toBe('ordo_augustus');
     expect(sheet.data.guild_name).toBe('Ordo Augustus');
+  });
+
+  test('lets an admin browse all sheets with filters and open others read-only', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'admin-1', email: 'admin@example.com' } },
+      profiles: [
+        { id: 'admin-1', email: 'admin@example.com', pseudo: 'Admin', role: 'admin' },
+        { id: 'player-1', email: 'kara@example.com', pseudo: 'Kara', role: 'user' },
+        { id: 'player-2', email: 'voss@example.com', pseudo: 'Voss', role: 'user' },
+        { id: 'disabled-1', email: 'old@example.com', pseudo: 'Old', role: 'user', disabled_at: '2026-06-28T12:00:00.000Z' }
+      ],
+      sheets: [{
+        id: 'admin-sheet',
+        name: 'Admin Perso',
+        saved_at: '2026-06-28T10:00:00.000Z',
+        user_id: 'admin-1',
+        guild_id: 'ordo_augustus',
+        data: { char_name: 'Admin Perso', guild_name: 'Ordo Augustus' }
+      }, {
+        id: 'sheet-kara-1',
+        name: 'Langer Hakar',
+        saved_at: '2026-06-28T12:00:00.000Z',
+        user_id: 'player-1',
+        guild_id: 'ordo_augustus',
+        data: { char_name: 'Langer Hakar', player_name: 'Kara', guild_name: 'Ordo Augustus' }
+      }, {
+        id: 'sheet-voss-1',
+        name: 'Maerv Rixen',
+        saved_at: '2026-06-28T13:00:00.000Z',
+        user_id: 'player-2',
+        guild_id: 'arcanum_astralis',
+        data: { char_name: 'Maerv Rixen', player_name: 'Voss', guild_name: 'Arcanum Astralis' }
+      }, {
+        id: 'sheet-kara-2',
+        name: 'Sans Guilde',
+        saved_at: '2026-06-28T11:00:00.000Z',
+        user_id: 'player-1',
+        guild_id: null,
+        data: { char_name: 'Sans Guilde', player_name: 'Kara' }
+      }, {
+        id: 'sheet-disabled',
+        name: 'Cachee',
+        saved_at: '2026-06-28T14:00:00.000Z',
+        user_id: 'disabled-1',
+        guild_id: 'ordo_augustus',
+        data: { char_name: 'Cachee' }
+      }]
+    });
+
+    await page.goto('/');
+    await expect(page.getByTestId('home-sheet-tabs')).toContainText('Toutes les fiches');
+    await page.getByTestId('home-sheet-tab-sheets').click();
+
+    await expect(page.locator('#homeSheetList')).toContainText('Langer Hakar');
+    await expect(page.locator('#homeSheetList')).toContainText('Maerv Rixen');
+    await expect(page.locator('#homeSheetList')).not.toContainText('Cachee');
+    await expect(page.getByTestId('admin-sheet-count')).toHaveText('4 / 4 fiche(s)');
+
+    await page.getByTestId('admin-sheet-guild-filter').selectOption('arcanum_astralis');
+    await expect(page.locator('#homeSheetList')).toContainText('Maerv Rixen');
+    await expect(page.locator('#homeSheetList')).not.toContainText('Langer Hakar');
+
+    await page.getByTestId('admin-sheet-guild-filter').selectOption('');
+    await page.getByTestId('admin-sheet-owner-filter').selectOption('player-1');
+    await expect(page.locator('#homeSheetList')).toContainText('Langer Hakar');
+    await expect(page.locator('#homeSheetList')).toContainText('Sans Guilde');
+    await expect(page.locator('#homeSheetList')).not.toContainText('Maerv Rixen');
+
+    await page.getByTestId('admin-sheet-search').fill('langer');
+    await expect(page.locator('#homeSheetList')).toContainText('Langer Hakar');
+    await expect(page.locator('#homeSheetList')).not.toContainText('Sans Guilde');
+
+    await page.getByTestId('admin-sheet-row').filter({ hasText: 'Langer Hakar' }).getByText('Ouvrir').click();
+    await expect(page.locator('#char_name')).toHaveValue('Langer Hakar');
+    await expect(page.locator('#char_name')).toBeDisabled();
   });
 
   test('saves the selected character guild as guild_id in cloud storage', async ({ page }) => {

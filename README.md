@@ -33,27 +33,6 @@ Notes:
 - The suite keeps the current CDN-based app setup (Tailwind, Google Fonts, `html2canvas`, `jspdf`).
 - On PowerShell with script policy restrictions, prefer `npm.cmd` and `npx.cmd`.
 
-## Supabase roles and profiles
-
-Apply the Supabase migrations in order before deploying the pseudo/MJ/admin/guild features:
-
-- `supabase/migrations/20260628120000_profiles_roles.sql`
-- `supabase/migrations/20260628130000_guilds_and_scoped_mj.sql`
-- `supabase/migrations/20260628140000_sheet_list_columns.sql`
-- `supabase/migrations/20260628150000_disable_profiles.sql`
-
-They create user profiles, guilds, role-aware RLS policies, lightweight list columns, account disabling, and the RPCs used by the app.
-
-After applying it, promote the first admin manually:
-
-```sql
-update public.profiles
-set role = 'admin'
-where email = 'your-email@example.com';
-```
-
-Existing users are backfilled with an empty pseudo. On their next login, the app blocks access until they choose a unique pseudo.
-
 ## Front-end architecture
 
 The original monolithic `script.js` has been refactored into focused browser modules loaded in order from `index.html`.

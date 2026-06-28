@@ -20,6 +20,13 @@
         let adminPanelTab = 'users';
         let homeSheetTab = 'all';
         let pendingUnguildedGuildAssignments = {};
+        const adminSheetsPageSize = 50;
+        let adminSheetsFilters = { guildId: '', ownerId: '', search: '' };
+        let adminSheetsRows = [];
+        let adminSheetsOffset = 0;
+        let adminSheetsHasMore = false;
+        let adminSheetsSearchTimer = null;
+        let adminSheetsRenderTargetId = 'adminSheetsList';
         let authMode = 'login';
         let autosaveTimer = null;
         let autosaveInFlight = false;
@@ -413,6 +420,7 @@
             document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('disabledAccountView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.remove('hidden');
+            document.getElementById('adminView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
             closeFabMenu();
@@ -423,8 +431,23 @@
             document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('disabledAccountView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('adminView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.remove('hidden');
             document.getElementById('fabMenu')?.classList.remove('hidden');
+        }
+
+        async function showAdminView() {
+            if (!isAdminRole()) return;
+            updateCurrentUserBar();
+            document.getElementById('authView')?.classList.add('hidden');
+            document.getElementById('profileSetupView')?.classList.add('hidden');
+            document.getElementById('disabledAccountView')?.classList.add('hidden');
+            document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('adminView')?.classList.remove('hidden');
+            document.getElementById('sheetView')?.classList.add('hidden');
+            document.getElementById('fabMenu')?.classList.add('hidden');
+            closeFabMenu();
+            await switchAdminTab(adminPanelTab);
         }
 
         async function renderHomeView() {
@@ -506,7 +529,8 @@
             if (currentProfile?.role === 'admin') {
                 return [
                     { id: 'mine', label: 'Mes fiches' },
-                    { id: 'unguilded', label: 'Fiches sans guilde' }
+                    { id: 'unguilded', label: 'Fiches sans guilde' },
+                    { id: 'sheets', label: 'Toutes les fiches' }
                 ];
             }
             if (currentProfile?.role === 'mj') {
@@ -561,6 +585,7 @@
 
         function emptyHomeMessage() {
             if (currentProfile?.role === 'admin' && homeSheetTab === 'unguilded') return 'Aucune fiche sans guilde';
+            if (currentProfile?.role === 'admin' && homeSheetTab === 'sheets') return 'Aucune fiche';
             if (currentProfile?.role === 'mj' && homeSheetTab === 'players') return 'Aucune fiche de joueur';
             return 'Aucune fiche sauvegardee';
         }
@@ -667,6 +692,7 @@
 
         function filterHomeSheets(sheets) {
             if (currentProfile?.role === 'admin') {
+                if (homeSheetTab === 'sheets') return sheets;
                 return homeSheetTab === 'unguilded' ? sheets.filter(isUnguildedSheet) : sheets;
             }
             if (currentProfile?.role === 'mj') {
@@ -678,6 +704,7 @@
         function getHomeSheetQueryOptions() {
             if (!isLoggedIn()) return {};
             if (currentProfile?.role === 'admin') {
+                if (homeSheetTab === 'sheets') return { adminAllSheets: true };
                 return homeSheetTab === 'unguilded'
                     ? { unguildedOnly: true }
                     : { ownerId: getCurrentUserId() };
@@ -708,6 +735,10 @@
                 list.innerHTML = '<div class="col-span-full text-center py-16"><p class="text-gray-500 text-xs uppercase tracking-widest">Chargement...</p></div>';
                 try {
                     const queryOptions = getHomeSheetQueryOptions();
+                    if (queryOptions.adminAllSheets) {
+                        await renderAdminAllSheetsPanel({ targetId: 'homeSheetList' });
+                        return;
+                    }
                     sheets = queryOptions.unguildedOnly
                         ? await AppCloud.listUnguildedSheets()
                         : await AppCloud.listSheets(queryOptions);
@@ -812,6 +843,7 @@
             document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('disabledAccountView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('adminView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
             closeFabMenu();
@@ -822,6 +854,7 @@
             document.getElementById('profileSetupView')?.classList.remove('hidden');
             document.getElementById('disabledAccountView')?.classList.add('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('adminView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
             closeFabMenu();
@@ -832,6 +865,7 @@
             document.getElementById('profileSetupView')?.classList.add('hidden');
             document.getElementById('disabledAccountView')?.classList.remove('hidden');
             document.getElementById('homeView')?.classList.add('hidden');
+            document.getElementById('adminView')?.classList.add('hidden');
             document.getElementById('sheetView')?.classList.add('hidden');
             document.getElementById('fabMenu')?.classList.add('hidden');
             closeFabMenu();
@@ -1356,12 +1390,17 @@
         function updateAdminTabs() {
             const usersList = document.getElementById('adminUserList');
             const unguildedList = document.getElementById('adminUnguildedList');
+            const sheetsList = document.getElementById('adminSheetsList');
             const usersTab = document.getElementById('adminUsersTab');
             const unguildedTab = document.getElementById('adminUnguildedTab');
+            const sheetsTab = document.getElementById('adminSheetsTab');
             const usersActive = adminPanelTab === 'users';
+            const unguildedActive = adminPanelTab === 'unguilded';
+            const sheetsActive = adminPanelTab === 'sheets';
 
             usersList?.classList.toggle('hidden', !usersActive);
-            unguildedList?.classList.toggle('hidden', usersActive);
+            unguildedList?.classList.toggle('hidden', !unguildedActive);
+            sheetsList?.classList.toggle('hidden', !sheetsActive);
 
             if (usersTab) {
                 usersTab.className = usersActive
@@ -1369,7 +1408,12 @@
                     : 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 rounded';
             }
             if (unguildedTab) {
-                unguildedTab.className = !usersActive
+                unguildedTab.className = unguildedActive
+                    ? 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded'
+                    : 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 rounded';
+            }
+            if (sheetsTab) {
+                sheetsTab.className = sheetsActive
                     ? 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded'
                     : 'px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 rounded';
             }
@@ -1446,7 +1490,11 @@
             list.innerHTML = '<p class="text-gray-500 text-xs uppercase tracking-widest py-4">Chargement...</p>';
 
             try {
-                const sheets = await AppCloud.listUnguildedSheets();
+                const [sheets, profiles] = await Promise.all([
+                    AppCloud.listUnguildedSheets(),
+                    AppCloud.listProfiles()
+                ]);
+                const profilesById = Object.fromEntries(profiles.map(profile => [profile.id, profile]));
                 if (sheets.length === 0) {
                     list.innerHTML = '<p class="text-gray-500 text-center py-6">Aucune fiche sans guilde</p>';
                     return;
@@ -1454,26 +1502,185 @@
 
                 list.innerHTML = sheets.map((sheet) => {
                     const name = escapeHtml(sheet.name || 'Sans nom');
+                    const owner = sheet.ownerId ? profilesById[sheet.ownerId] : null;
+                    const ownerName = escapeHtml(owner?.pseudo || 'Pseudo inconnu');
+                    const selectedGuildId = pendingUnguildedGuildAssignments[sheet.id] || '';
                     return `<div class="flex flex-col md:flex-row md:items-center gap-3 justify-between bg-[#002e33] border border-[#004e53] rounded p-3">
-                        <div class="text-[#00f0ff] font-bold truncate">${name}</div>
-                        <select data-testid="admin-assign-guild-select" onchange="handleAdminAssignSheetGuild('${sheet.id}', this.value)"
+                        <div class="min-w-0">
+                            <div class="text-[#00f0ff] font-bold truncate">${name}</div>
+                            <div class="text-gray-400 text-xs mt-1">Joueur : ${ownerName}</div>
+                        </div>
+                        <select data-testid="admin-assign-guild-select" onchange="handlePendingUnguildedGuildChange('${sheet.id}', this.value)"
                                 class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                             <option value="">Choisir une guilde</option>
-                            ${guildOptionsHtml('')}
+                            ${guildOptionsHtml(selectedGuildId)}
                         </select>
                     </div>`;
                 }).join('');
+                const pendingCount = Object.keys(pendingUnguildedGuildAssignments).filter((sheetId) => pendingUnguildedGuildAssignments[sheetId]).length;
+                const buttonDisabled = pendingCount === 0 ? 'disabled' : '';
+                const buttonClass = pendingCount === 0
+                    ? 'bg-[#002e33] text-gray-600 border border-[#004e53] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm cursor-not-allowed'
+                    : 'bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] border border-[#00f0ff] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm transition-colors';
+                list.innerHTML += `<div class="flex justify-end pt-2">
+                    <button type="button" data-testid="home-apply-guild-assignments" onclick="applyPendingUnguildedGuildAssignments()" ${buttonDisabled}
+                            class="${buttonClass}">
+                        Valider les changements${pendingCount ? ` (${pendingCount})` : ''}
+                    </button>
+                </div>`;
             } catch (error) {
                 console.error('[admin:unguilded]', error);
                 list.innerHTML = '<p class="text-red-400 text-xs uppercase tracking-widest py-4">Erreur de chargement</p>';
             }
         }
 
+        function adminGuildFilterOptions(selectedId = '') {
+            return `<option value="" ${selectedId === '' ? 'selected' : ''}>Toutes les guildes</option>
+                <option value="__none__" ${selectedId === '__none__' ? 'selected' : ''}>Sans guilde</option>
+                ${guildOptionsHtml(selectedId)}`;
+        }
+
+        function adminOwnerFilterOptions(profiles, selectedId = '') {
+            const activeProfiles = profiles.filter(profile => !profile.isDisabled);
+            return `<option value="" ${selectedId === '' ? 'selected' : ''}>Tous les joueurs</option>
+                ${activeProfiles.map((profile) => {
+                    const selected = profile.id === selectedId ? 'selected' : '';
+                    return `<option value="${profile.id}" ${selected}>${escapeHtml(profile.pseudo || profile.email || 'Pseudo inconnu')}</option>`;
+                }).join('')}`;
+        }
+
+        function renderAdminSheetsRows(list, sheets, append = false) {
+            const rowsHtml = sheets.map((sheet) => {
+                const date = new Date(sheet.savedAt).toLocaleString('fr-FR');
+                const owner = escapeHtml(sheet.ownerPseudo || 'Pseudo inconnu');
+                const guild = sheet.guildName ? escapeHtml(sheet.guildName) : 'Sans guilde';
+                return `<div data-testid="admin-sheet-row" class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#002e33] border border-[#004e53] rounded p-3">
+                    <div class="min-w-0">
+                        <div class="text-[#00f0ff] font-bold truncate">${escapeHtml(sheet.name || 'Sans nom')}</div>
+                        <div class="text-gray-400 text-xs mt-1">Joueur : ${owner}</div>
+                        <div class="text-gray-500 text-xs mt-1">Guilde : ${guild} - ${date}</div>
+                    </div>
+                    <button type="button" onclick="openSheetFromHome('${sheet.id}')"
+                            class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded text-xs uppercase font-bold tracking-wider transition-colors">
+                        Ouvrir
+                    </button>
+                </div>`;
+            }).join('');
+
+            const rowsContainer = list.querySelector('[data-testid="admin-sheets-rows"]');
+            if (!rowsContainer) return;
+            rowsContainer.innerHTML = append ? rowsContainer.innerHTML + rowsHtml : rowsHtml;
+        }
+
+        async function renderAdminAllSheetsPanel(options = {}) {
+            const targetId = options.targetId || adminSheetsRenderTargetId;
+            const list = document.getElementById(targetId);
+            if (!list || !isAdminRole()) return;
+            const append = !!options.append;
+            adminSheetsRenderTargetId = targetId;
+            if (targetId === 'adminSheetsList') updateAdminTabs();
+
+            if (!append) {
+                adminSheetsOffset = 0;
+                adminSheetsRows = [];
+                list.className = targetId === 'homeSheetList'
+                    ? 'flex flex-col gap-3 mb-10 min-h-[160px]'
+                    : 'space-y-3';
+                list.innerHTML = '<p class="text-gray-500 text-xs uppercase tracking-widest py-4">Chargement...</p>';
+            }
+
+            try {
+                const profiles = await AppCloud.listProfiles();
+                const rows = await AppCloud.adminListSheets({
+                    guildId: adminSheetsFilters.guildId || null,
+                    ownerId: adminSheetsFilters.ownerId || null,
+                    search: adminSheetsFilters.search || null,
+                    limit: adminSheetsPageSize,
+                    offset: adminSheetsOffset
+                });
+                const totalCount = rows[0]?.totalCount || (append ? adminSheetsRows.length : rows.length);
+                adminSheetsRows = append ? adminSheetsRows.concat(rows) : rows;
+                adminSheetsOffset = adminSheetsRows.length;
+                adminSheetsHasMore = adminSheetsRows.length < totalCount;
+
+                if (!append) {
+                    list.innerHTML = `<div class="grid grid-cols-1 md:grid-cols-3 gap-3 bg-[#00141a] border border-[#004e53] rounded p-3">
+                        <label class="block">
+                            <span class="block text-xs uppercase text-gray-400 mb-1">Guilde</span>
+                            <select data-testid="admin-sheet-guild-filter" onchange="handleAdminSheetFilterChange('guildId', this.value)"
+                                    class="w-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-2 text-sm">
+                                ${adminGuildFilterOptions(adminSheetsFilters.guildId)}
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="block text-xs uppercase text-gray-400 mb-1">Joueur</span>
+                            <select data-testid="admin-sheet-owner-filter" onchange="handleAdminSheetFilterChange('ownerId', this.value)"
+                                    class="w-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-2 text-sm">
+                                ${adminOwnerFilterOptions(profiles, adminSheetsFilters.ownerId)}
+                            </select>
+                        </label>
+                        <label class="block">
+                            <span class="block text-xs uppercase text-gray-400 mb-1">Recherche</span>
+                            <input data-testid="admin-sheet-search" type="search" value="${escapeHtml(adminSheetsFilters.search)}"
+                                   oninput="handleAdminSheetSearchInput(this.value)"
+                                   placeholder="Nom du personnage"
+                                   class="w-full bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-2 text-sm">
+                        </label>
+                    </div>
+                    <div class="flex items-center justify-between text-xs text-gray-500 uppercase tracking-widest">
+                        <span data-testid="admin-sheet-count">${adminSheetsRows.length} / ${totalCount} fiche(s)</span>
+                    </div>
+                    <div data-testid="admin-sheets-rows" class="space-y-3"></div>
+                    <div class="flex justify-center pt-2">
+                        <button type="button" data-testid="admin-sheets-load-more" onclick="loadMoreAdminSheets()"
+                                class="${adminSheetsHasMore ? '' : 'hidden'} bg-[#002e33] hover:bg-[#004e53] text-[#00f0ff] border border-[#004e53] px-5 py-2 rounded clip-corner uppercase font-bold tracking-widest text-sm transition-colors">
+                            Charger plus
+                        </button>
+                    </div>`;
+                }
+
+                renderAdminSheetsRows(list, rows, append);
+                const countEl = list.querySelector('[data-testid="admin-sheet-count"]');
+                if (countEl) countEl.textContent = `${adminSheetsRows.length} / ${totalCount} fiche(s)`;
+                const loadMore = list.querySelector('[data-testid="admin-sheets-load-more"]');
+                if (loadMore) loadMore.classList.toggle('hidden', !adminSheetsHasMore);
+                const rowsContainer = list.querySelector('[data-testid="admin-sheets-rows"]');
+                if (rowsContainer && adminSheetsRows.length === 0) {
+                    rowsContainer.innerHTML = '<p class="text-gray-500 text-center py-6">Aucune fiche ne correspond aux filtres</p>';
+                }
+            } catch (error) {
+                console.error('[admin:sheets]', error);
+                list.innerHTML = '<p class="text-red-400 text-xs uppercase tracking-widest py-4">Erreur de chargement</p>';
+            }
+        }
+
+        async function handleAdminSheetFilterChange(key, value) {
+            if (!isAdminRole()) return;
+            adminSheetsFilters = { ...adminSheetsFilters, [key]: value };
+            await renderAdminAllSheetsPanel();
+        }
+
+        function handleAdminSheetSearchInput(value) {
+            if (!isAdminRole()) return;
+            adminSheetsFilters = { ...adminSheetsFilters, search: String(value || '') };
+            if (adminSheetsSearchTimer) clearTimeout(adminSheetsSearchTimer);
+            adminSheetsSearchTimer = setTimeout(() => {
+                adminSheetsSearchTimer = null;
+                renderAdminAllSheetsPanel();
+            }, 300);
+        }
+
+        async function loadMoreAdminSheets() {
+            if (!isAdminRole() || !adminSheetsHasMore) return;
+            await renderAdminAllSheetsPanel({ append: true });
+        }
+
         async function switchAdminTab(tab) {
-            adminPanelTab = tab === 'unguilded' ? 'unguilded' : 'users';
+            adminPanelTab = tab === 'unguilded' || tab === 'sheets' ? tab : 'users';
             updateAdminTabs();
             if (adminPanelTab === 'users') await renderAdminPanel();
-            else await renderAdminUnguildedPanel();
+            else if (adminPanelTab === 'unguilded') await renderAdminUnguildedPanel();
+            else await renderAdminAllSheetsPanel();
         }
 
         async function toggleAdminPanel(forceOpen) {
@@ -1502,7 +1709,7 @@
                 await AppCloud.setUserRole(userId, role, mjGuildId);
                 if (userId === getCurrentUserId()) {
                     await refreshCurrentProfile();
-                    if (!isAdminRole()) document.getElementById('adminPanel')?.classList.add('hidden');
+                    if (!isAdminRole()) showHomeView();
                 }
                 await renderHomeView();
             } catch (error) {
@@ -1572,11 +1779,19 @@
             try {
                 await Promise.all(assignments.map(([sheetId, guildId]) => AppCloud.assignSheetGuild(sheetId, guildId)));
                 pendingUnguildedGuildAssignments = {};
-                await renderHomeView();
+                if (document.getElementById('adminView')?.classList.contains('hidden') === false) {
+                    await renderAdminUnguildedPanel();
+                } else {
+                    await renderHomeView();
+                }
             } catch (error) {
                 console.error('[admin:assign-guilds]', error);
                 alert('Erreur lors de l attribution des guildes.');
-                await renderHomeView();
+                if (document.getElementById('adminView')?.classList.contains('hidden') === false) {
+                    await renderAdminUnguildedPanel();
+                } else {
+                    await renderHomeView();
+                }
             }
         }
 
@@ -1700,6 +1915,7 @@
             deleteSheetFromStorage,
             showAuthView,
             showHomeView,
+            showAdminView,
             showSheetView,
             renderHomeView,
             switchHomeSheetTab,
@@ -1717,6 +1933,9 @@
             toggleAdminPanel,
             switchAdminTab,
             handleAdminRoleChange,
+            handleAdminSheetFilterChange,
+            handleAdminSheetSearchInput,
+            loadMoreAdminSheets,
             handleAdminDisabledToggle,
             handleAdminAssignSheetGuild,
             handlePendingUnguildedGuildChange,

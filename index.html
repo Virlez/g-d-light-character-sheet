@@ -147,29 +147,13 @@
             <div id="homeUserBar" class="hidden flex items-center justify-end gap-3 mt-3">
                 <span id="homeUserName" class="text-[#00f0ff] text-xs opacity-80 truncate max-w-xs"></span>
                 <span id="homeUserRole" class="hidden text-[10px] uppercase tracking-widest border border-[#004e53] text-gray-400 px-2 py-0.5 rounded"></span>
-                <button id="adminPanelToggle" onclick="toggleAdminPanel()" class="hidden text-gray-500 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Gestion utilisateurs</button>
+                <button id="adminPanelToggle" onclick="showAdminView()" class="hidden text-gray-500 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Administration</button>
                 <button onclick="handleLogout()" class="text-gray-600 hover:text-red-400 text-xs uppercase font-bold tracking-wider transition-colors">Déconnexion</button>
             </div>
         </header>
         <div id="homeSheetTabs" data-testid="home-sheet-tabs" class="hidden flex flex-wrap justify-center gap-2 mb-6"></div>
         <div id="homeSheetList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 min-h-[160px]">
         </div>
-        <section id="adminPanel" data-testid="admin-panel" class="hidden mb-10 border border-[#004e53] bg-[#001a1f] rounded-lg p-4">
-            <div class="flex items-center justify-between border-b border-[#004e53] pb-3 mb-3">
-                <h2 class="text-[#00f0ff] font-bold uppercase tracking-widest text-lg">Administration</h2>
-                <button onclick="toggleAdminPanel(false)" class="text-gray-400 hover:text-white text-xl leading-none font-bold">&#x2715;</button>
-            </div>
-            <div class="flex flex-wrap gap-2 mb-4">
-                <button id="adminUsersTab" type="button" onclick="switchAdminTab('users')" class="px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded">
-                    Utilisateurs
-                </button>
-                <button id="adminUnguildedTab" type="button" onclick="switchAdminTab('unguilded')" class="px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#004e53] text-gray-500 rounded">
-                    Fiches sans guilde
-                </button>
-            </div>
-            <div id="adminUserList" data-testid="admin-user-list" class="space-y-3"></div>
-            <div id="adminUnguildedList" data-testid="admin-unguilded-list" class="hidden space-y-3"></div>
-        </section>
         <div class="flex flex-wrap justify-center gap-4 pt-4 border-t border-[#004e53]">
             <button onclick="newSheet()"
                     class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-8 py-3 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-base border border-[#00f0ff]">
@@ -184,6 +168,27 @@
     </div>
 
     <!-- ═══ SHEET VIEW ═══ -->
+    <div id="adminView" class="w-full max-w-5xl relative z-10 hidden py-6">
+        <header class="mb-10 border-b-2 border-[#004e53] pb-6">
+            <div class="text-center">
+                <h1 class="text-4xl md:text-5xl text-[#00f0ff] drop-shadow-[0_0_10px_rgba(0,240,255,0.6)] font-bold uppercase tracking-widest">Administration</h1>
+                <p class="text-sm tracking-widest text-gray-400 mt-2">GESTION DES UTILISATEURS // SWTOR</p>
+            </div>
+            <div class="flex items-center justify-end gap-3 mt-3">
+                <button onclick="showHomeView()" class="text-gray-500 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Mes fiches</button>
+                <button onclick="handleLogout()" class="text-gray-600 hover:text-red-400 text-xs uppercase font-bold tracking-wider transition-colors">DÃ©connexion</button>
+            </div>
+        </header>
+        <section id="adminPanel" data-testid="admin-panel" class="border border-[#004e53] bg-[#001a1f] rounded-lg p-4 mb-10">
+            <div class="flex flex-wrap gap-2 mb-4 border-b border-[#004e53] pb-4">
+                <button id="adminUsersTab" type="button" onclick="switchAdminTab('users')" class="px-3 py-1 text-xs uppercase font-bold tracking-widest border border-[#00f0ff] text-[#00f0ff] rounded">
+                    Utilisateurs
+                </button>
+            </div>
+            <div id="adminUserList" data-testid="admin-user-list" class="space-y-3"></div>
+        </section>
+    </div>
+
     <div id="sheetView" class="w-full max-w-5xl relative z-10 hidden">
         <div class="no-print py-2 mb-1">
             <button onclick="showHomeView()"

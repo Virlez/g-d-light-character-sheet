@@ -30,6 +30,19 @@
         };
     }
 
+    function mapAdminSheetRow(row) {
+        return {
+            id: row.id,
+            name: row.name || 'Sans nom',
+            savedAt: row.saved_at,
+            ownerId: row.user_id || null,
+            ownerPseudo: row.owner_pseudo || '',
+            guildId: row.guild_id || null,
+            guildName: row.guild_id && AppGuilds ? AppGuilds.nameFromId(row.guild_id) : '',
+            totalCount: Number(row.total_count || 0)
+        };
+    }
+
     function mapProfile(profile) {
         return {
             id: profile.id,
@@ -161,10 +174,7 @@
     async function listProfiles() {
         const client = getClient();
         if (!client) return [];
-        const { data, error } = await client
-            .from('profiles')
-            .select('id, pseudo, email, role, mj_guild_id, disabled_at')
-            .order('pseudo', { ascending: true, nullsFirst: false });
+        const { data, error } = await client.rpc('list_visible_profiles');
         if (error) throw error;
         return (data || []).map(mapProfile);
     }
@@ -209,6 +219,20 @@
         }));
     }
 
+    async function adminListSheets(filters = {}) {
+        const client = getClient();
+        if (!client) return [];
+        const { data, error } = await client.rpc('admin_list_sheets', {
+            filter_guild_id: filters.guildId || null,
+            filter_user_id: filters.ownerId || null,
+            search_name: filters.search || null,
+            limit_count: filters.limit || 50,
+            offset_count: filters.offset || 0
+        });
+        if (error) throw error;
+        return (data || []).map(mapAdminSheetRow);
+    }
+
     async function assignSheetGuild(sheetId, guildId) {
         const client = getClient();
         if (!client) throw new Error('Non connecte');
@@ -232,6 +256,7 @@
         setUserRole,
         setUserDisabled,
         listUnguildedSheets,
+        adminListSheets,
         assignSheetGuild
     };
 })(window);
