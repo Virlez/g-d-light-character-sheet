@@ -62,4 +62,29 @@ test.describe('Character sheet - core derived flows', () => {
     await sheet.setNumber('talent_force_bonus', 4);
     await sheet.expectValues({ talent_force_total: '11' });
   });
+
+  test('applies special defense talents without expanding the defense table awkwardly', async ({ page }) => {
+    const sheet = new CharacterSheetPage(page);
+
+    await sheet.goto();
+
+    await expect(page.getByTestId('special-talents-panel')).toHaveClass(/hidden/);
+    await page.getByTestId('special-talents-toggle').click();
+    await expect(page.getByTestId('special-talents-panel')).not.toHaveClass(/hidden/);
+
+    await sheet.setNumber('attr_con', 2);
+    await sheet.setNumber('inv_bp', 7);
+    await sheet.expectValues({
+      stat_hp: '10',
+      stat_bp: '7'
+    });
+    await expect(page.locator('#stat_mental')).toHaveCount(0);
+
+    await sheet.check('talent_solid');
+    await sheet.expectValues({ stat_hp: '25' });
+
+    await sheet.check('talent_inexpugnable');
+    await sheet.expectValues({ stat_bp: '12' });
+    await expect(sheet.inputById('inv_bp')).toHaveValue('7');
+  });
 });

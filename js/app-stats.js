@@ -44,11 +44,15 @@
         const attrExpl = document.getElementById('attr_expl');
         const attrExplBonus = document.getElementById('attr_expl_bonus');
         const armorSelect = document.getElementById('armor_type');
+        const talentSolid = document.getElementById('talent_solid');
+        const talentInexpugnable = document.getElementById('talent_inexpugnable');
 
         const derivedStats = AppLogic.calculateDerivedStats({
             invPa: invPa?.value,
             invBp: invBp?.value,
             invShield: invShield?.value,
+            hasSolid: !!talentSolid?.checked,
+            hasInexpugnable: !!talentInexpugnable?.checked,
             attrCon: attrCon?.value,
             attrConBonus: attrConBonus?.value,
             attrDist: attrDist?.value,
@@ -173,7 +177,7 @@
 
     function initSheet(options) {
         AppDom.attachInputListeners(
-            ['inv_pa','inv_bp','inv_shield','attr_con','attr_con_bonus','attr_dist','attr_dist_bonus','attr_phy','attr_phy_bonus','attr_expl','attr_expl_bonus','attr_str','attr_know','attr_soc','attr_pilot'],
+            ['inv_pa','inv_bp','inv_shield','attr_con','attr_con_bonus','attr_dist','attr_dist_bonus','attr_phy','attr_phy_bonus','attr_expl','attr_expl_bonus','attr_str','attr_know','attr_soc','attr_pilot','talent_solid','talent_inexpugnable'],
             options.computeDerivedStats
         );
 

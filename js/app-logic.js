@@ -74,9 +74,11 @@
 
         return {
             statPa: input.invPa || '',
-            statBp: input.invBp || '',
+            statBp: input.invBp === '' || input.invBp === null || typeof input.invBp === 'undefined'
+                ? (input.hasInexpugnable ? 5 : '')
+                : toNumber(input.invBp) + (input.hasInexpugnable ? 5 : 0),
             statShield: input.invShield || '',
-            statHp: (conTotal * 5),
+            statHp: (conTotal * 5) + (input.hasSolid ? 15 : 0),
             statRes: Math.ceil(conTotal / 2),
             statDef: Math.ceil(Math.max(distTotal, phyTotal) / 2),
             statInit: Math.max(0, Math.max(conTotal, explTotal) - armorMalus),

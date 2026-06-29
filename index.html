@@ -308,8 +308,28 @@
                     </div>
                 </section>
 
-                <section class="section-box p-3 clip-corner">
-                    <h2 class="text-lg text-[#00f0ff] mb-2 border-b border-[#004e53] inline-block pr-4">Défenses & Statistiques</h2>
+                <section class="section-box p-3 clip-corner relative">
+                    <div class="flex items-start justify-between gap-3 mb-2 border-b border-[#004e53]">
+                        <h2 class="text-lg text-[#00f0ff] inline-block pr-4">Défenses & Statistiques</h2>
+                        <button type="button" id="specialTalentsToggle" data-testid="special-talents-toggle" onclick="toggleSpecialTalentsPanel()"
+                                title="Talents spéciaux"
+                                aria-label="Talents spéciaux"
+                                class="w-7 h-7 shrink-0 inline-flex items-center justify-center text-[#00f0ff] border border-[#004e53] rounded hover:bg-[#004e53] transition-colors leading-none">
+                            &#9881;
+                        </button>
+                    </div>
+                    <div id="specialTalentsPanel" data-testid="special-talents-panel" class="hidden mb-3 border border-[#004e53] bg-[#001a1f] rounded p-2">
+                        <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <label class="flex items-start gap-2 text-xs text-gray-300 leading-tight">
+                                <input type="checkbox" id="talent_solid" class="mt-0.5 accent-[#00f0ff]">
+                                <span><span class="text-[#00f0ff] uppercase font-bold tracking-wider">Solide</span><br><span class="text-gray-500">+15 PV</span></span>
+                            </label>
+                            <label class="flex items-start gap-2 text-xs text-gray-300 leading-tight">
+                                <input type="checkbox" id="talent_inexpugnable" class="mt-0.5 accent-[#00f0ff]">
+                                <span><span class="text-[#00f0ff] uppercase font-bold tracking-wider">Inexpugnable</span><br><span class="text-gray-500">+5 BP</span></span>
+                            </label>
+                        </div>
+                    </div>
                     <div class="overflow-x-auto">
                         <table class="w-full sw-table text-center border-collapse text-base">
                             <thead>

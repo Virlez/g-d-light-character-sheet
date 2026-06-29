@@ -432,6 +432,10 @@
             const sheetRoot = document.getElementById('sheetRoot');
             if (sheetRoot) {
                 sheetRoot.querySelectorAll('input, textarea, select, button').forEach((element) => {
+                    if (element.id === 'specialTalentsToggle') {
+                        element.disabled = false;
+                        return;
+                    }
                     if (element.id === 'importFile') {
                         element.disabled = readOnly;
                         return;
@@ -2204,6 +2208,15 @@
             if (toggle) toggle.innerHTML = isOpen ? '&#9776;' : '&#x2715;';
         }
 
+        function toggleSpecialTalentsPanel(forceOpen) {
+            const panel = document.getElementById('specialTalentsPanel');
+            const toggle = document.getElementById('specialTalentsToggle');
+            if (!panel) return;
+            const open = typeof forceOpen === 'boolean' ? forceOpen : panel.classList.contains('hidden');
+            panel.classList.toggle('hidden', !open);
+            if (toggle) toggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+        }
+
         function closeFabMenu() {
             const items = document.getElementById('fabItems');
             const toggle = document.getElementById('fabToggle');
@@ -2353,6 +2366,7 @@
             handlePendingUnguildedGuildChange,
             applyPendingUnguildedGuildAssignments,
             toggleFabMenu,
+            toggleSpecialTalentsPanel,
             closeFabMenu
         };
     }

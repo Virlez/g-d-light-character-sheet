@@ -9,7 +9,10 @@
     function attachInputListeners(ids, handler) {
         ids.forEach((id) => {
             const element = byId(id);
-            if (element) element.addEventListener('input', handler);
+            if (element) {
+                element.addEventListener('input', handler);
+                element.addEventListener('change', handler);
+            }
         });
     }
 
