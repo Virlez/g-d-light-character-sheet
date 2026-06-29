@@ -1,8 +1,16 @@
 (function (global) {
+    function safeImageDataUrl(value) {
+        const dataUrl = String(value || '').trim();
+        if (!/^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=\s]+$/i.test(dataUrl)) {
+            return null;
+        }
+        return dataUrl.replace(/\s/g, '');
+    }
+
     function applyImageData(options) {
         const imgInput = options.imgInput;
         const imgPreview = options.imgPreview;
-        const imageData = options.imageData;
+        const imageData = safeImageDataUrl(options.imageData);
         const ensureMoveUI = options.ensureMoveUI;
 
         if (!imageData) return null;

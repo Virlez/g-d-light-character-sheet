@@ -38,6 +38,7 @@
         let autosaveTimer = null;
         let autosaveInFlight = false;
         let autosaveQueued = false;
+        const guestModeStorageKey = 'swtor_guest_mode';
         const toNumber = (value) => AppLogic.toNumber(value);
 
         function autoExpandTextarea(textarea) {
@@ -309,11 +310,11 @@
                         <div class="text-gray-400 text-xs">${date}</div>
                     </div>
                     <div class="flex gap-2">
-                        <button onclick="loadSheetFromStorage('${sheet.id}')"
+                        <button onclick="${eventHandlerCall('loadSheetFromStorage', sheet.id)}"
                                 class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-3 py-1 rounded text-sm uppercase font-bold transition-colors">
                             Charger
                         </button>
-                        <button onclick="deleteSheetFromStorage('${sheet.id}')"
+                        <button onclick="${eventHandlerCall('deleteSheetFromStorage', sheet.id)}"
                                 class="hover:bg-red-900 hover:text-red-400 text-gray-500 px-3 py-1 rounded text-sm font-bold transition-colors">
                             ✕
                         </button>
@@ -357,8 +358,56 @@
                 .replace(/"/g, '&quot;');
         }
 
+        function escapeAttr(str) {
+            return escapeHtml(str).replace(/'/g, '&#39;');
+        }
+
+        function jsLiteral(value) {
+            return JSON.stringify(String(value ?? ''))
+                .replace(/</g, '\\u003C')
+                .replace(/>/g, '\\u003E')
+                .replace(/&/g, '\\u0026')
+                .replace(/\u2028/g, '\\u2028')
+                .replace(/\u2029/g, '\\u2029');
+        }
+
+        function eventHandler(expression) {
+            return escapeAttr(expression);
+        }
+
+        function eventHandlerCall(name, ...args) {
+            return eventHandler(`${name}(${args.map(jsLiteral).join(', ')})`);
+        }
+
+        function safeImageDataUrl(value) {
+            const dataUrl = String(value || '').trim();
+            if (!/^data:image\/(?:png|jpe?g|gif|webp|svg\+xml);base64,[A-Za-z0-9+/=\s]+$/i.test(dataUrl)) {
+                return null;
+            }
+            return dataUrl.replace(/\s/g, '');
+        }
+
         function isLoggedIn() {
             return !!(window.__currentSession);
+        }
+
+        function isGuestModeEnabled() {
+            try {
+                return localStorage.getItem(guestModeStorageKey) === '1';
+            } catch (error) {
+                return false;
+            }
+        }
+
+        function setGuestModeEnabled(enabled) {
+            try {
+                if (enabled) localStorage.setItem(guestModeStorageKey, '1');
+                else localStorage.removeItem(guestModeStorageKey);
+            } catch (error) {}
+        }
+
+        function isLocalMode() {
+            return !isLoggedIn();
         }
 
         function getCurrentUserId() {
@@ -403,7 +452,10 @@
             const nameEl = document.getElementById('homeUserName');
             const roleEl = document.getElementById('homeUserRole');
             const userBar = document.getElementById('homeUserBar');
+            const homeGuestBar = document.getElementById('homeGuestBar');
+            const sheetGuestBar = document.getElementById('sheetGuestBar');
             const adminToggle = document.getElementById('adminPanelToggle');
+            const showGuestBars = isLocalMode() && isGuestModeEnabled();
 
             if (nameEl) nameEl.textContent = displayName;
             if (roleEl) {
@@ -416,6 +468,8 @@
                 roleEl.classList.toggle('hidden', !shouldShowRole);
             }
             if (userBar) userBar.classList.toggle('hidden', !displayName);
+            if (homeGuestBar) homeGuestBar.classList.toggle('hidden', !showGuestBars);
+            if (sheetGuestBar) sheetGuestBar.classList.toggle('hidden', !showGuestBars);
             if (adminToggle) adminToggle.classList.toggle('hidden', !isAdminRole());
         }
 
@@ -434,6 +488,7 @@
         }
 
         function showSheetView() {
+            updateCurrentUserBar();
             const backLabel = document.getElementById('sheetBackButtonLabel');
             if (backLabel) {
                 backLabel.textContent = canEditSheet(currentSheetOwnerId) ? 'Mes fiches' : 'Retour';
@@ -512,25 +567,25 @@
                     : '';
                 const canDelete = canEditSheet(sheet.ownerId);
                 const deleteHtml = canDelete
-                    ? `<button onclick="deleteSheetFromHome('${sheet.id}')"
+                    ? `<button onclick="${eventHandlerCall('deleteSheetFromHome', sheet.id)}"
                                 class="py-2 px-4 text-gray-600 hover:text-red-400 hover:bg-red-900/20 text-sm transition-colors border-l border-[#004e53]">
                             &#x2715;
                         </button>`
                     : '';
-                const safeSrc = sheet.imageData && sheet.imageData.startsWith('data:image/') ? sheet.imageData : null;
+                const safeSrc = safeImageDataUrl(sheet.imageData);
                 const imgHtml = safeSrc
-                    ? `<img src="${safeSrc}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`
+                    ? `<img src="${escapeAttr(safeSrc)}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`
                     : `<div class="w-full h-full flex items-center justify-center text-5xl opacity-10">&#9632;</div>`;
                 return `<div class="bg-[#001a1f] border border-[#004e53] rounded-lg overflow-hidden hover:border-[#00f0ff] transition-colors">
-                    <div class="h-52 bg-[#002e33] overflow-hidden cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">${imgHtml}</div>
-                    <div class="p-3 cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">
+                    <div class="h-52 bg-[#002e33] overflow-hidden cursor-pointer" onclick="${eventHandlerCall('openSheetFromHome', sheet.id)}">${imgHtml}</div>
+                    <div class="p-3 cursor-pointer" onclick="${eventHandlerCall('openSheetFromHome', sheet.id)}">
                         <div class="text-[#00f0ff] font-bold text-base truncate">${name}</div>
                         <div class="text-gray-500 text-xs mt-1">${date}</div>
                         ${ownerHtml}
                         ${guildHtml}
                     </div>
                     <div class="flex border-t border-[#004e53]">
-                        <button onclick="openSheetFromHome('${sheet.id}')"
+                        <button onclick="${eventHandlerCall('openSheetFromHome', sheet.id)}"
                                 class="flex-1 py-2 text-[#00f0ff] hover:bg-[#004e53] text-xs uppercase font-bold tracking-wider transition-colors">
                             Ouvrir
                         </button>
@@ -628,9 +683,10 @@
                     imageData = await imagePromise;
                 }
 
-                if (!imageData || !imageData.startsWith('data:image/')) return;
+                const safeSrc = safeImageDataUrl(imageData);
+                if (!safeSrc) return;
                 placeholder.className = 'w-full h-full';
-                placeholder.innerHTML = `<img src="${imageData}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`;
+                placeholder.innerHTML = `<img src="${escapeAttr(safeSrc)}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`;
                 placeholder.removeAttribute('data-sheet-image-id');
             } catch (error) {
                 console.error('[sheet:image]', error);
@@ -673,25 +729,25 @@
                     : '';
                 const canDelete = canEditSheet(sheet.ownerId);
                 const deleteHtml = canDelete
-                    ? `<button onclick="deleteSheetFromHome('${sheet.id}')"
+                    ? `<button onclick="${eventHandlerCall('deleteSheetFromHome', sheet.id)}"
                                 class="py-2 px-4 text-gray-600 hover:text-red-400 hover:bg-red-900/20 text-sm transition-colors border-l border-[#004e53]">
                             &#x2715;
                         </button>`
                     : '';
-                const safeSrc = sheet.imageData && sheet.imageData.startsWith('data:image/') ? sheet.imageData : null;
+                const safeSrc = safeImageDataUrl(sheet.imageData);
                 const imgHtml = safeSrc
-                    ? `<img src="${safeSrc}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`
-                    : `<div class="w-full h-full flex items-center justify-center text-5xl opacity-10" ${isLoggedIn() ? `data-sheet-image-id="${sheet.id}"` : ''}>&#9632;</div>`;
+                    ? `<img src="${escapeAttr(safeSrc)}" class="w-full h-full object-cover" style="object-position: center 20%" alt="">`
+                    : `<div class="w-full h-full flex items-center justify-center text-5xl opacity-10" ${isLoggedIn() ? `data-sheet-image-id="${escapeAttr(sheet.id)}"` : ''}>&#9632;</div>`;
                 return `<div class="bg-[#001a1f] border border-[#004e53] rounded-lg overflow-hidden hover:border-[#00f0ff] transition-colors">
-                    <div class="h-52 bg-[#002e33] overflow-hidden cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">${imgHtml}</div>
-                    <div class="p-3 cursor-pointer" onclick="openSheetFromHome('${sheet.id}')">
+                    <div class="h-52 bg-[#002e33] overflow-hidden cursor-pointer" onclick="${eventHandlerCall('openSheetFromHome', sheet.id)}">${imgHtml}</div>
+                    <div class="p-3 cursor-pointer" onclick="${eventHandlerCall('openSheetFromHome', sheet.id)}">
                         <div class="text-[#00f0ff] font-bold text-base truncate">${name}</div>
                         <div class="text-gray-500 text-xs mt-1">${date}</div>
                         ${ownerHtml}
                         ${guildHtml}
                     </div>
                     <div class="flex border-t border-[#004e53]">
-                        <button onclick="openSheetFromHome('${sheet.id}')"
+                        <button onclick="${eventHandlerCall('openSheetFromHome', sheet.id)}"
                                 class="flex-1 py-2 text-[#00f0ff] hover:bg-[#004e53] text-xs uppercase font-bold tracking-wider transition-colors">
                             Ouvrir
                         </button>
@@ -714,7 +770,7 @@
                         <div class="text-[#00f0ff] font-bold truncate">${name}</div>
                         <div class="text-gray-400 text-xs mt-1">Joueur : ${ownerName}</div>
                     </div>
-                    <select data-testid="home-assign-guild-select" onchange="handlePendingUnguildedGuildChange('${sheet.id}', this.value)"
+                    <select data-testid="home-assign-guild-select" onchange="${eventHandler(`handlePendingUnguildedGuildChange(${jsLiteral(sheet.id)}, this.value)`)}"
                             class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                         <option value="">Choisir une guilde</option>
                         ${guildOptionsHtml(selectedGuildId)}
@@ -1088,7 +1144,7 @@
                 await AppAuth.updateEmail(newEmail);
                 const passwordInput = document.getElementById('accountEmailCurrentPassword');
                 if (passwordInput) passwordInput.value = '';
-                setAccountMessage('accountEmailMessage', 'Demande envoyee. Verifiez vos e-mails pour confirmer le changement si Supabase le demande.', 'info');
+                setAccountMessage('accountEmailMessage', 'Demande envoyee. Pour valider le changement, confirmez le lien recu sur l ancien e-mail et sur le nouvel e-mail.', 'info');
             } catch (error) {
                 console.error('[account:email]', error);
                 setAccountMessage('accountEmailMessage', formatAuthError(error, 'account'), 'error');
@@ -1495,6 +1551,9 @@
 
         function continueWithoutAccount() {
             window.__currentSession = null;
+            currentProfile = null;
+            currentSheetReadOnly = false;
+            setGuestModeEnabled(true);
             if (AppPersistence.listSheetsFromLocalStorage().length > 0) {
                 showHomeView();
             } else {
@@ -1502,8 +1561,18 @@
             }
         }
 
+        function showLoginView() {
+            setGuestModeEnabled(false);
+            window.__currentSession = null;
+            currentProfile = null;
+            currentSheetReadOnly = false;
+            showAuthView();
+            setAuthMode('login');
+        }
+
         async function handleLogout() {
             closeAccountModal();
+            setGuestModeEnabled(false);
             await AppAuth.signOut();
             // onAuthStateChange will fire SIGNED_OUT -> showAuthView()
         }
@@ -1560,8 +1629,8 @@
                             <div class="text-[#00f0ff] font-bold truncate">${pseudo}</div>
                             <div class="text-gray-500 text-xs truncate">${email}</div>
                         </div>
-                        <label class="sr-only" for="role-${profile.id}">RÃ´le</label>
-                        <select id="role-${profile.id}" data-testid="admin-role-select" onchange="handleAdminRoleChange('${profile.id}', this.value)"
+                        <label class="sr-only" for="role-${escapeAttr(profile.id)}">RÃ´le</label>
+                        <select id="role-${escapeAttr(profile.id)}" data-testid="admin-role-select" onchange="${eventHandler(`handleAdminRoleChange(${jsLiteral(profile.id)}, this.value)`)}"
                                 class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                             <option value="user" ${role === 'user' ? 'selected' : ''}>${roleLabel('user')}</option>
                             <option value="mj" ${role === 'mj' ? 'selected' : ''}>${roleLabel('mj')}</option>
@@ -1604,7 +1673,7 @@
             if (!AppGuilds) return '';
             return AppGuilds.GUILDS.map((guild) => {
                 const selected = guild.id === selectedId ? 'selected' : '';
-                return `<option value="${guild.id}" ${selected}>${escapeHtml(guild.name)}</option>`;
+                return `<option value="${escapeAttr(guild.id)}" ${selected}>${escapeHtml(guild.name)}</option>`;
             }).join('');
         }
 
@@ -1669,7 +1738,7 @@
                         : 'border-red-900/70 text-red-300 hover:bg-red-900/30';
                     const disableButton = self
                         ? '<button type="button" disabled class="border border-[#004e53] text-gray-600 rounded px-3 py-1 text-sm cursor-not-allowed">Compte actuel</button>'
-                        : `<button type="button" data-testid="admin-disable-toggle" onclick="handleAdminDisabledToggle('${profile.id}', ${isDisabled ? 'false' : 'true'})"
+                        : `<button type="button" data-testid="admin-disable-toggle" onclick="${eventHandler(`handleAdminDisabledToggle(${jsLiteral(profile.id)}, ${isDisabled ? 'false' : 'true'})`)}"
                                   class="${disableButtonClass} rounded px-3 py-1 text-sm transition-colors">${disableButtonLabel}</button>`;
                     return `<div data-testid="admin-user-row" class="flex flex-col gap-3 bg-[#002e33] border ${isDisabled ? 'border-red-900/60 opacity-75' : 'border-[#004e53]'} rounded p-3">
                         <div class="flex flex-col md:flex-row md:items-center gap-3 justify-between">
@@ -1681,15 +1750,15 @@
                             <div class="text-gray-500 text-xs truncate">${email}</div>
                         </div>
                         <div class="flex flex-col sm:flex-row gap-2">
-                            <label class="sr-only" for="role-${profile.id}">Role</label>
-                            <select id="role-${profile.id}" data-testid="admin-role-select" onchange="handleAdminRoleChange('${profile.id}')"
+                            <label class="sr-only" for="role-${escapeAttr(profile.id)}">Role</label>
+                            <select id="role-${escapeAttr(profile.id)}" data-testid="admin-role-select" onchange="${eventHandlerCall('handleAdminRoleChange', profile.id)}"
                                     class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                                 <option value="user" ${role === 'user' ? 'selected' : ''}>${roleLabel('user')}</option>
                                 <option value="mj" ${role === 'mj' ? 'selected' : ''}>${roleLabel('mj')}</option>
                                 <option value="admin" ${role === 'admin' ? 'selected' : ''}>${roleLabel('admin')}</option>
                             </select>
-                            <label class="sr-only" for="mj-guild-${profile.id}">Guilde MJ</label>
-                            <select id="mj-guild-${profile.id}" data-testid="admin-mj-guild-select" onchange="handleAdminRoleChange('${profile.id}')"
+                            <label class="sr-only" for="mj-guild-${escapeAttr(profile.id)}">Guilde MJ</label>
+                            <select id="mj-guild-${escapeAttr(profile.id)}" data-testid="admin-mj-guild-select" onchange="${eventHandlerCall('handleAdminRoleChange', profile.id)}"
                                     class="${role === 'mj' ? '' : 'hidden'} bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                                 ${guildOptionsHtml(selectedGuildId)}
                             </select>
@@ -1731,7 +1800,7 @@
                             <div class="text-[#00f0ff] font-bold truncate">${name}</div>
                             <div class="text-gray-400 text-xs mt-1">Joueur : ${ownerName}</div>
                         </div>
-                        <select data-testid="admin-assign-guild-select" onchange="handlePendingUnguildedGuildChange('${sheet.id}', this.value)"
+                        <select data-testid="admin-assign-guild-select" onchange="${eventHandler(`handlePendingUnguildedGuildChange(${jsLiteral(sheet.id)}, this.value)`)}"
                                 class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                             <option value="">Choisir une guilde</option>
                             ${guildOptionsHtml(selectedGuildId)}
@@ -1766,7 +1835,7 @@
             return `<option value="" ${selectedId === '' ? 'selected' : ''}>Tous les joueurs</option>
                 ${activeProfiles.map((profile) => {
                     const selected = profile.id === selectedId ? 'selected' : '';
-                    return `<option value="${profile.id}" ${selected}>${escapeHtml(profile.pseudo || profile.email || 'Pseudo inconnu')}</option>`;
+                    return `<option value="${escapeAttr(profile.id)}" ${selected}>${escapeHtml(profile.pseudo || profile.email || 'Pseudo inconnu')}</option>`;
                 }).join('')}`;
         }
 
@@ -1775,7 +1844,7 @@
             return `<option value="" ${selectedId === '' ? 'selected' : ''}>Tous les joueurs</option>
                 ${activeProfiles.map((profile) => {
                     const selected = profile.id === selectedId ? 'selected' : '';
-                    return `<option value="${profile.id}" ${selected}>${escapeHtml(profile.pseudo || profile.email || 'Pseudo inconnu')}</option>`;
+                    return `<option value="${escapeAttr(profile.id)}" ${selected}>${escapeHtml(profile.pseudo || profile.email || 'Pseudo inconnu')}</option>`;
                 }).join('')}`;
         }
 
@@ -1786,13 +1855,13 @@
                 const date = new Date(sheet.savedAt).toLocaleString('fr-FR');
                 const owner = escapeHtml(sheet.ownerPseudo || 'Pseudo inconnu');
                 const guild = sheet.guildName ? escapeHtml(sheet.guildName) : 'Sans guilde';
-                return `<div data-testid="${rowsTestId}" class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#002e33] border border-[#004e53] rounded p-3">
+                return `<div data-testid="${escapeAttr(rowsTestId)}" class="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-[#002e33] border border-[#004e53] rounded p-3">
                     <div class="min-w-0">
                         <div class="text-[#00f0ff] font-bold truncate">${escapeHtml(sheet.name || 'Sans nom')}</div>
                         <div class="text-gray-400 text-xs mt-1">Joueur : ${owner}</div>
                         <div class="text-gray-500 text-xs mt-1">Guilde : ${guild} - ${date}</div>
                     </div>
-                    <button type="button" onclick="openSheetFromHome('${sheet.id}')"
+                    <button type="button" onclick="${eventHandlerCall('openSheetFromHome', sheet.id)}"
                             class="bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] px-4 py-2 rounded text-xs uppercase font-bold tracking-wider transition-colors">
                         Ouvrir
                     </button>
@@ -2164,11 +2233,14 @@
         // Initialise auth + routing
         (async function () {
             window.__currentSession = null;
-            const noAuth = new URLSearchParams(location.search).has('noauth');
+            const localHostnames = ['localhost', '127.0.0.1', '::1'];
+            const isLocalHost = localHostnames.includes(location.hostname) || location.hostname.endsWith('.localhost');
+            const noAuth = isLocalHost && new URLSearchParams(location.search).has('noauth');
+            const guestMode = isGuestModeEnabled();
             let recoveryRedirect = detectRecoveryRedirect();
 
-            if (noAuth || !AppAuth.isConfigured()) {
-                // No Supabase configured, or test bypass — use localStorage only
+            if (guestMode || noAuth || !AppAuth.isConfigured()) {
+                // Guest mode, no Supabase configured, or local test bypass: use localStorage only.
                 if (AppPersistence.listSheetsFromLocalStorage().length > 0) {
                     showHomeView();
                 } else {
@@ -2206,8 +2278,10 @@
                     setAuthMode('recovery');
                     setAuthMessage('Choisissez un nouveau mot de passe pour terminer la récupération.', 'info');
                 } else if (event === 'SIGNED_IN') {
+                    setGuestModeEnabled(false);
                     await handlePostSignIn();
                 } else if (event === 'SIGNED_OUT') {
+                    setGuestModeEnabled(false);
                     currentProfile = null;
                     currentSheetReadOnly = false;
                     showAuthView();
@@ -2262,6 +2336,7 @@
             handleAccountEmailSubmit,
             handleAccountPasswordSubmit,
             continueWithoutAccount,
+            showLoginView,
             handleLogout,
             handlePostSignIn,
             toggleAdminPanel,

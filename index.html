@@ -152,6 +152,10 @@
                 <button onclick="handleLogout()" class="text-gray-600 hover:text-red-400 text-xs uppercase font-bold tracking-wider transition-colors">Déconnexion</button>
             </div>
         </header>
+        <div id="homeGuestBar" class="hidden flex items-center justify-end gap-3 mt-3">
+            <span class="text-gray-500 text-xs uppercase tracking-wider">Mode local</span>
+            <button onclick="showLoginView()" class="text-[#00f0ff] hover:text-white text-xs uppercase font-bold tracking-wider transition-colors">Connexion</button>
+        </div>
         <div id="homeSheetTabs" data-testid="home-sheet-tabs" class="hidden flex flex-wrap justify-center gap-2 mb-6"></div>
         <div id="homeSheetList" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mb-10 min-h-[160px]">
         </div>
@@ -240,11 +244,15 @@
     </div>
 
     <div id="sheetView" class="w-full max-w-5xl relative z-10 hidden">
-        <div class="no-print py-2 mb-1">
+        <div class="no-print py-2 mb-1 flex items-center justify-between gap-3">
             <button id="sheetBackButton" onclick="showHomeView()"
                     class="text-[#00f0ff] hover:text-white text-xs uppercase font-bold tracking-widest flex items-center gap-2 transition-colors opacity-60 hover:opacity-100">
                 &#x2190; <span id="sheetBackButtonLabel">Mes fiches</span>
             </button>
+            <div id="sheetGuestBar" class="hidden flex items-center gap-3">
+                <span class="text-gray-500 text-xs uppercase tracking-wider">Mode local</span>
+                <button onclick="showLoginView()" class="text-[#00f0ff] hover:text-white text-xs uppercase font-bold tracking-wider transition-colors">Connexion</button>
+            </div>
         </div>
 
     <div id="sheetRoot" data-testid="sheet-root" class="w-full max-w-5xl relative z-10">

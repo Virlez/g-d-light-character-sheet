@@ -80,7 +80,8 @@
             if (key === 'char_image_data' || key === 'weapons') return;
 
             if (key === 'force') {
-                const radio = document.querySelector(`input[name="force"][value="${value}"]`);
+                const radio = Array.from(document.querySelectorAll('input[name="force"]'))
+                    .find((input) => input.value === String(value));
                 if (radio) radio.checked = true;
                 return;
             }

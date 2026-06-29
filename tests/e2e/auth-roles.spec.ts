@@ -298,6 +298,24 @@ async function installSupabaseMock(
 }
 
 test.describe('Auth profiles and roles', () => {
+  test('lets visitors use the sheet creator in persistent guest mode', async ({ page }) => {
+    await installSupabaseMock(page);
+    await page.goto('/');
+
+    await expect(page.locator('#authView')).toBeVisible();
+    await page.getByRole('button', { name: 'Continuer sans compte' }).click();
+
+    await expect(page.getByTestId('sheet-root')).toBeVisible();
+    await expect(page.locator('#sheetGuestBar')).toBeVisible();
+
+    await page.reload();
+    await expect(page.getByTestId('sheet-root')).toBeVisible();
+    await expect(page.locator('#authView')).toBeHidden();
+
+    await page.locator('#sheetGuestBar').getByRole('button', { name: 'Connexion' }).click();
+    await expect(page.locator('#authView')).toBeVisible();
+  });
+
   test('requires a pseudo on signup and sends it to Supabase metadata', async ({ page }) => {
     await installSupabaseMock(page);
     await page.goto('/');
