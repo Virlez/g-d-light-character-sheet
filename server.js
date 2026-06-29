@@ -27,7 +27,7 @@ const mimeTypes = {
 const securityHeaders = {
     'Content-Security-Policy': [
         "default-src 'self'",
-        "script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'",
+        "script-src 'self' https://cdn.tailwindcss.com https://cdnjs.cloudflare.com https://cdn.jsdelivr.net 'unsafe-inline' 'unsafe-eval'",
         "style-src 'self' https://fonts.googleapis.com 'unsafe-inline'",
         "font-src https://fonts.gstatic.com",
         "img-src 'self' data: blob:",
