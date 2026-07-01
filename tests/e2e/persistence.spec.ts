@@ -129,6 +129,30 @@ test.describe('Character sheet - persistence flows', () => {
     await expect(sheet.inputById('guild_name')).toHaveValue('');
   });
 
+  test('keeps locally autosaved sheets available after a reload', async ({ page }) => {
+    const sheet = new CharacterSheetPage(page);
+
+    await sheet.goto();
+    await sheet.setText('char_name', 'Persist Local QA');
+    await sheet.setText('player_name', 'Local Player');
+    await sheet.setNumber('attr_con', 3);
+
+    await expect.poll(async () => {
+      return page.evaluate(() => Object.values(JSON.parse(localStorage.getItem('swtor_sheets') || '{}')).length);
+    }).toBe(1);
+
+    await page.reload();
+    await page.evaluate(() => {
+      (window as typeof window & { showHomeView?: () => void }).showHomeView?.();
+    });
+
+    await expect(page.locator('#homeSheetList')).toContainText('Persist Local QA');
+    await page.locator('#homeSheetList').getByText('Persist Local QA').click();
+    await expect(sheet.inputById('char_name')).toHaveValue('Persist Local QA');
+    await expect(sheet.inputById('player_name')).toHaveValue('Local Player');
+    await expect(sheet.inputById('attr_con')).toHaveValue('3');
+  });
+
   test('resets the form to defaults after confirmation', async ({ page }) => {
     const sheet = new CharacterSheetPage(page);
 

@@ -784,4 +784,78 @@ test.describe('Auth profiles and roles', () => {
     expect(saved.data.guild_name).toBe('Arcanum Astralis');
     expect(saved.image_data).toContain('data:image/svg+xml');
   });
+
+  test('autosaves connected user edits to cloud storage', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'user-1', email: 'player@example.com' } },
+      profiles: [{ id: 'user-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }]
+    });
+
+    await page.goto('/');
+    await page.getByText('+ Nouvelle Fiche').click();
+    await page.locator('#char_name').fill('Autosave Hero');
+    await page.locator('#player_name').fill('Autosave Player');
+    await page.locator('#guild_name').selectOption('Ordo Augustus');
+
+    await expect.poll(async () => {
+      return page.evaluate(() => {
+        const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+        return state.upsertRows.find((row: any) => row.data?.char_name === 'Autosave Hero' && row.guild_id === 'ordo_augustus') || null;
+      });
+    }).not.toBeNull();
+
+    const saved = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.upsertRows.find((row: any) => row.data?.char_name === 'Autosave Hero' && row.guild_id === 'ordo_augustus');
+    });
+
+    expect(saved).toMatchObject({
+      name: 'Autosave Hero',
+      user_id: 'user-1',
+      guild_id: 'ordo_augustus'
+    });
+    expect(saved.data).toMatchObject({
+      char_name: 'Autosave Hero',
+      player_name: 'Autosave Player',
+      guild_name: 'Ordo Augustus'
+    });
+  });
+
+  test('does not autosave read-only sheets opened by a MJ', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'gm-1', email: 'gm@example.com' } },
+      profiles: [
+        { id: 'gm-1', email: 'gm@example.com', pseudo: 'Le MJ', role: 'mj', mj_guild_id: 'ordo_augustus' },
+        { id: 'player-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }
+      ],
+      sheets: [{
+        id: 'sheet-player',
+        name: 'Kara Venn',
+        saved_at: '2026-06-28T12:00:00.000Z',
+        user_id: 'player-1',
+        guild_id: 'ordo_augustus',
+        data: { char_name: 'Kara Venn', guild_name: 'Ordo Augustus' }
+      }]
+    });
+
+    await page.goto('/');
+    await page.getByTestId('home-sheet-tab-players').click();
+    await page.getByTestId('mj-player-sheet-row').filter({ hasText: 'Kara Venn' }).getByText('Ouvrir').click();
+
+    await expect(page.locator('#char_name')).toBeDisabled();
+    await page.evaluate(() => {
+      const input = document.getElementById('char_name') as HTMLInputElement | null;
+      if (!input) return;
+      input.value = 'Should Not Save';
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+
+    await page.waitForTimeout(1000);
+    const upsertCount = await page.evaluate(() => {
+      const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
+      return state.upsertRows.length;
+    });
+    expect(upsertCount).toBe(0);
+  });
 });
