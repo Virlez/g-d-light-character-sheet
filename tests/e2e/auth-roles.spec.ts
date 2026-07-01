@@ -821,6 +821,38 @@ test.describe('Auth profiles and roles', () => {
     });
   });
 
+  test('restores the connected user active sheet after a browser reload', async ({ page }) => {
+    await installSupabaseMock(page, {
+      session: { user: { id: 'user-1', email: 'player@example.com' } },
+      profiles: [{ id: 'user-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }],
+      sheets: [{
+        id: 'sheet-cloud-resume',
+        name: 'Cloud Resume',
+        saved_at: '2026-06-28T12:00:00.000Z',
+        user_id: 'user-1',
+        guild_id: 'ordo_augustus',
+        data: {
+          char_name: 'Cloud Resume',
+          player_name: 'Cloud Player',
+          guild_name: 'Ordo Augustus'
+        }
+      }]
+    });
+
+    await page.goto('/');
+    await page.locator('#homeSheetList').getByText('Cloud Resume').click();
+    await expect(page.locator('#char_name')).toHaveValue('Cloud Resume');
+    await expect.poll(async () => {
+      return page.evaluate(() => JSON.parse(localStorage.getItem('swtor_active_sheet') || 'null')?.mode);
+    }).toBe('cloud');
+
+    await page.reload();
+
+    await expect(page.locator('#char_name')).toHaveValue('Cloud Resume');
+    await expect(page.locator('#player_name')).toHaveValue('Cloud Player');
+    await expect(page.locator('#guild_name')).toHaveValue('Ordo Augustus');
+  });
+
   test('does not autosave read-only sheets opened by a MJ', async ({ page }) => {
     await installSupabaseMock(page, {
       session: { user: { id: 'gm-1', email: 'gm@example.com' } },

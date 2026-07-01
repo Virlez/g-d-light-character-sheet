@@ -39,6 +39,7 @@
         let autosaveInFlight = false;
         let autosaveQueued = false;
         const guestModeStorageKey = 'swtor_guest_mode';
+        const activeSheetStorageKey = 'swtor_active_sheet';
         const toNumber = (value) => AppLogic.toNumber(value);
 
         function autoExpandTextarea(textarea) {
@@ -141,6 +142,7 @@
             currentSheetId = isLoggedIn()
                 ? await AppCloud.saveSheet(data, currentSheetId)
                 : AppPersistence.saveSheetToLocalStorage(data, currentSheetId);
+            rememberActiveSheet();
 
             if (!silent) {
                 alert(isUpdate ? 'Fiche mise à jour !' : 'Fiche sauvegardée !');
@@ -179,6 +181,44 @@
             }, delay);
         }
 
+        function isSheetViewVisible() {
+            return !document.getElementById('sheetView')?.classList.contains('hidden');
+        }
+
+        function rememberActiveSheet() {
+            if (!currentSheetId || !isSheetViewVisible()) return;
+            try {
+                localStorage.setItem(activeSheetStorageKey, JSON.stringify({
+                    id: currentSheetId,
+                    mode: isLoggedIn() ? 'cloud' : 'local',
+                    savedAt: new Date().toISOString()
+                }));
+            } catch (error) {}
+        }
+
+        function clearActiveSheet() {
+            try { localStorage.removeItem(activeSheetStorageKey); } catch (error) {}
+        }
+
+        function readActiveSheet() {
+            try { return JSON.parse(localStorage.getItem(activeSheetStorageKey) || 'null'); }
+            catch (error) { return null; }
+        }
+
+        function clearActiveSheetIfMatches(id) {
+            const activeSheet = readActiveSheet();
+            if (activeSheet?.id === id) clearActiveSheet();
+        }
+
+        async function flushAutosaveNow() {
+            if (autosaveTimer) {
+                clearTimeout(autosaveTimer);
+                autosaveTimer = null;
+            }
+            if (currentSheetReadOnly || !isSheetViewVisible()) return;
+            await flushAutosave();
+        }
+
         function installAutosave() {
             const sheetRoot = document.getElementById('sheetRoot');
             if (!sheetRoot) return;
@@ -192,6 +232,13 @@
 
             sheetRoot.addEventListener('input', handleFieldChange, true);
             sheetRoot.addEventListener('change', handleFieldChange, true);
+
+            document.addEventListener('visibilitychange', () => {
+                if (document.visibilityState === 'hidden') flushAutosaveNow();
+            });
+            window.addEventListener('pagehide', () => {
+                flushAutosaveNow();
+            });
         }
 
         function exportJSON() {
@@ -323,10 +370,7 @@
             }).join('');
         }
 
-        async function loadSheetFromStorage(id) {
-            const entry = AppPersistence.loadSheetFromLocalStorage(id);
-            if (!entry) { alert('Fiche introuvable.'); return; }
-
+        function applySheetEntry(entry, id) {
             const result = AppPersistence.applySheetData(entry.data, {
                 resetImage,
                 renderWeapon,
@@ -339,13 +383,25 @@
             });
             currentImageData = result.currentImageData;
             currentSheetId = id;
-            currentSheetOwnerId = null;
-            setReadOnlyMode(false);
+            currentSheetOwnerId = entry.ownerId || null;
+            setReadOnlyMode(!canEditSheet(currentSheetOwnerId));
+            showSheetView();
+            rememberActiveSheet();
+            setReadOnlyMode(!canEditSheet(currentSheetOwnerId));
+            requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autoExpandTextarea));
+        }
+
+        async function loadSheetFromStorage(id) {
+            const entry = AppPersistence.loadSheetFromLocalStorage(id);
+            if (!entry) { alert('Fiche introuvable.'); return; }
+
+            applySheetEntry({ ...entry, ownerId: null }, id);
             closeStoragePanel();
         }
 
         function deleteSheetFromStorage(id) {
             if (!confirm('Supprimer cette fiche ?')) return;
+            clearActiveSheetIfMatches(id);
             AppPersistence.deleteSheetFromLocalStorage(id);
             renderStorageList();
         }
@@ -478,6 +534,7 @@
         }
 
         function showHomeView() {
+            clearActiveSheet();
             updateCurrentUserBar();
 
             renderHomeView();
@@ -910,24 +967,32 @@
                 ? await AppCloud.loadSheet(id)
                 : AppPersistence.loadSheetFromLocalStorage(id);
             if (!entry) { alert('Fiche introuvable.'); return; }
-            currentSheetOwnerId = entry.ownerId || null;
-            setReadOnlyMode(!canEditSheet(currentSheetOwnerId));
-            const result = AppPersistence.applySheetData(entry.data, {
-                resetImage, renderWeapon, imgPreview, imgInput,
-                ensureMoveUI, autoExpandTextarea,
-                updateInvPA: publicUpdateInvPA, computeDerivedStats
-            });
-            currentImageData = result.currentImageData;
-            currentSheetId = id;
-            showSheetView();
-            setReadOnlyMode(!canEditSheet(currentSheetOwnerId));
-            // Re-expand after the sheet is visible (scrollHeight is 0 while hidden)
-            requestAnimationFrame(() => document.querySelectorAll('textarea').forEach(autoExpandTextarea));
+            applySheetEntry(entry, id);
+        }
+
+        async function restoreActiveSheetIfPossible() {
+            const activeSheet = readActiveSheet();
+            if (!activeSheet?.id) return false;
+
+            const expectedMode = isLoggedIn() ? 'cloud' : 'local';
+            if (activeSheet.mode && activeSheet.mode !== expectedMode) return false;
+
+            const entry = isLoggedIn()
+                ? await AppCloud.loadSheet(activeSheet.id)
+                : AppPersistence.loadSheetFromLocalStorage(activeSheet.id);
+            if (!entry) {
+                clearActiveSheet();
+                return false;
+            }
+
+            applySheetEntry(entry, activeSheet.id);
+            return true;
         }
 
         async function deleteSheetFromHome(id) {
             if (!confirm('Supprimer cette fiche ?')) return;
             if (currentSheetId === id) currentSheetId = null;
+            clearActiveSheetIfMatches(id);
             if (isLoggedIn()) {
                 await AppCloud.deleteSheet(id);
             } else {
@@ -1111,6 +1176,7 @@
 
             AppPersistence.clearAllLocalSheets();
             localStorage.removeItem(guestModeStorageKey);
+            clearActiveSheet();
             if (!isLoggedIn()) {
                 currentSheetId = null;
                 currentSheetOwnerId = null;
@@ -1616,6 +1682,7 @@
                 showHomeView();
             } else {
                 showSheetView();
+                rememberActiveSheet();
             }
         }
 
@@ -2308,6 +2375,7 @@
 
             if (guestMode || noAuth || !AppAuth.isConfigured()) {
                 // Guest mode, no Supabase configured, or local test bypass: use localStorage only.
+                if (await restoreActiveSheetIfPossible()) return;
                 if (AppPersistence.listSheetsFromLocalStorage().length > 0) {
                     showHomeView();
                 } else {
@@ -2333,7 +2401,10 @@
 
             if (!recoveryRedirect && session) {
                 const ready = await ensureProfileReady();
-                if (ready) showHomeView();
+                if (ready) {
+                    if (await restoreActiveSheetIfPossible()) return;
+                    showHomeView();
+                }
             } else if (!recoveryRedirect) {
                 showAuthView();
             }
