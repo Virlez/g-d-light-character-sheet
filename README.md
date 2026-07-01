@@ -49,6 +49,17 @@ The original monolithic `script.js` has been refactored into focused browser mod
 
 This split keeps the current no-build browser setup while making the behavior easier to test and maintain.
 
+## Privacy / RGPD scope
+
+This is a personal project for a small audience. The app exposes a concise in-app privacy panel instead of a cookie banner:
+
+- no advertising, analytics, social tracking, or optional tracking cookies are used;
+- local mode stores sheets in the browser `localStorage`;
+- account mode uses Supabase for authentication, profiles, roles, guild scope, and cloud sheet storage;
+- users can export the open sheet as JSON, delete sheets from "Mes fiches", clear local sheet data from the browser, and ask the project administrator to delete their account.
+
+If analytics, ads, embeds, or social widgets are added later, add a real consent flow before loading those optional trackers.
+
 ## How to use — Sauvegarder et charger / Save & Load (FR / EN)
 
 ### Français

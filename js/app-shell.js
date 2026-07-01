@@ -1071,6 +1071,57 @@
                 : 'mt-3 text-xs text-[#00f0ff]';
         }
 
+        function setPrivacyPanelMessage(text, tone = 'info') {
+            const msgEl = document.getElementById('privacyPanelMessage');
+            if (!msgEl) return;
+            if (!text) {
+                msgEl.textContent = '';
+                msgEl.className = 'mt-3 text-xs hidden';
+                return;
+            }
+
+            msgEl.textContent = text;
+            msgEl.className = tone === 'error'
+                ? 'mt-3 text-xs text-red-400'
+                : 'mt-3 text-xs text-[#00f0ff]';
+        }
+
+        function openPrivacyPanel() {
+            const panel = document.getElementById('privacyPanel');
+            setPrivacyPanelMessage('');
+            if (panel) {
+                panel.classList.remove('hidden');
+                panel.classList.add('flex');
+            }
+        }
+
+        function closePrivacyPanel() {
+            const panel = document.getElementById('privacyPanel');
+            if (panel) {
+                panel.classList.add('hidden');
+                panel.classList.remove('flex');
+            }
+            setPrivacyPanelMessage('');
+        }
+
+        function clearLocalPrivacyData() {
+            if (!confirm('Effacer toutes les fiches sauvegardées dans ce navigateur ? Les fiches cloud ne seront pas supprimées.')) {
+                return;
+            }
+
+            AppPersistence.clearAllLocalSheets();
+            localStorage.removeItem(guestModeStorageKey);
+            if (!isLoggedIn()) {
+                currentSheetId = null;
+                currentSheetOwnerId = null;
+                renderHomeView();
+                updateCurrentUserBar();
+            }
+            renderStorageList();
+            setPrivacyPanelMessage('Données locales effacées dans ce navigateur.', 'info');
+            setAccountMessage('accountPrivacyMessage', 'Données locales effacées dans ce navigateur.', 'info');
+        }
+
         function currentAccountEmail() {
             return window.__currentSession?.user?.email || currentProfile?.email || '';
         }
@@ -1083,6 +1134,7 @@
                 });
             setAccountMessage('accountEmailMessage', '', 'info');
             setAccountMessage('accountPasswordMessage', '', 'info');
+            setAccountMessage('accountPrivacyMessage', '', 'info');
         }
 
         function openAccountModal() {
@@ -1132,30 +1184,30 @@
                 return;
             }
             if (newEmail === currentAccountEmail()) {
-                setAccountMessage('accountEmailMessage', 'Ce nouvel e-mail est identique a l e-mail actuel.', 'error');
+                setAccountMessage('accountEmailMessage', "Ce nouvel e-mail est identique à l'e-mail actuel.", 'error');
                 return;
             }
 
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Verification...';
+                submitBtn.textContent = 'Vérification...';
             }
             setAccountMessage('accountEmailMessage', '', 'info');
 
             try {
                 await reauthenticateCurrentUser(currentPassword);
-                if (submitBtn) submitBtn.textContent = 'Mise a jour...';
+                if (submitBtn) submitBtn.textContent = 'Mise à jour...';
                 await AppAuth.updateEmail(newEmail);
                 const passwordInput = document.getElementById('accountEmailCurrentPassword');
                 if (passwordInput) passwordInput.value = '';
-                setAccountMessage('accountEmailMessage', 'Demande envoyee. Pour valider le changement, confirmez le lien recu sur l ancien e-mail et sur le nouvel e-mail.', 'info');
+                setAccountMessage('accountEmailMessage', "Demande envoyée. Pour valider le changement, confirmez le lien reçu sur l'ancien e-mail et sur le nouvel e-mail.", 'info');
             } catch (error) {
                 console.error('[account:email]', error);
                 setAccountMessage('accountEmailMessage', formatAuthError(error, 'account'), 'error');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = "Mettre a jour l'e-mail";
+                    submitBtn.textContent = "Mettre à jour l'e-mail";
                 }
             }
         }
@@ -1180,19 +1232,19 @@
                 return;
             }
             if (newPassword === currentPassword) {
-                setAccountMessage('accountPasswordMessage', 'Le nouveau mot de passe doit etre different.', 'error');
+                setAccountMessage('accountPasswordMessage', 'Le nouveau mot de passe doit être différent.', 'error');
                 return;
             }
 
             if (submitBtn) {
                 submitBtn.disabled = true;
-                submitBtn.textContent = 'Verification...';
+                submitBtn.textContent = 'Vérification...';
             }
             setAccountMessage('accountPasswordMessage', '', 'info');
 
             try {
                 await reauthenticateCurrentUser(currentPassword);
-                if (submitBtn) submitBtn.textContent = 'Mise a jour...';
+                if (submitBtn) submitBtn.textContent = 'Mise à jour...';
                 await AppAuth.updatePassword(newPassword);
                 await AppAuth.signOut();
                 window.__currentSession = null;
@@ -1200,14 +1252,14 @@
                 closeAccountModal();
                 showAuthView();
                 setAuthMode('login');
-                setAuthMessage('Mot de passe mis a jour. Reconnectez-vous avec votre nouveau mot de passe.', 'info');
+                setAuthMessage('Mot de passe mis à jour. Reconnectez-vous avec votre nouveau mot de passe.', 'info');
             } catch (error) {
                 console.error('[account:password]', error);
                 setAccountMessage('accountPasswordMessage', formatAuthError(error, 'account'), 'error');
             } finally {
                 if (submitBtn) {
                     submitBtn.disabled = false;
-                    submitBtn.textContent = 'Mettre a jour le mot de passe';
+                    submitBtn.textContent = 'Mettre à jour le mot de passe';
                 }
             }
         }
@@ -1400,6 +1452,7 @@
             const passwordInput = document.getElementById('authPassword');
             const forgotBtn = document.getElementById('authForgotPasswordBtn');
             const recoveryHint = document.getElementById('authRecoveryHint');
+            const privacyNotice = document.getElementById('authPrivacyNotice');
 
             if (loginBtn) loginBtn.className = base + (isLogin ? active : inactive);
             if (registerBtn) registerBtn.className = base + (isRegister ? active : inactive);
@@ -1433,6 +1486,7 @@
             }
             if (forgotBtn) forgotBtn.classList.toggle('hidden', !isLogin);
             if (recoveryHint) recoveryHint.classList.toggle('hidden', !isRecovery);
+            if (privacyNotice) privacyNotice.classList.toggle('hidden', !isRegister);
             setAuthMessage('', 'info');
         }
 
@@ -1633,7 +1687,7 @@
                             <div class="text-[#00f0ff] font-bold truncate">${pseudo}</div>
                             <div class="text-gray-500 text-xs truncate">${email}</div>
                         </div>
-                        <label class="sr-only" for="role-${escapeAttr(profile.id)}">RÃ´le</label>
+                        <label class="sr-only" for="role-${escapeAttr(profile.id)}">Rôle</label>
                         <select id="role-${escapeAttr(profile.id)}" data-testid="admin-role-select" onchange="${eventHandler(`handleAdminRoleChange(${jsLiteral(profile.id)}, this.value)`)}"
                                 class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                             <option value="user" ${role === 'user' ? 'selected' : ''}>${roleLabel('user')}</option>
@@ -1668,7 +1722,7 @@
                 await renderHomeView();
             } catch (error) {
                 console.error('[admin:role]', error);
-                alert('Erreur lors du changement de rÃ´le.');
+                alert('Erreur lors du changement de rôle.');
                 await renderAdminPanel();
             }
         }
@@ -1734,9 +1788,9 @@
                     const isDisabled = !!profile.isDisabled;
                     const self = profile.id === getCurrentUserId();
                     const statusHtml = isDisabled
-                        ? '<span class="text-[10px] uppercase tracking-widest border border-red-900/70 text-red-300 px-2 py-0.5 rounded">Desactive</span>'
+                        ? '<span class="text-[10px] uppercase tracking-widest border border-red-900/70 text-red-300 px-2 py-0.5 rounded">Désactivé</span>'
                         : '<span class="text-[10px] uppercase tracking-widest border border-[#004e53] text-gray-400 px-2 py-0.5 rounded">Actif</span>';
-                    const disableButtonLabel = isDisabled ? 'Reactiver' : 'Desactiver';
+                    const disableButtonLabel = isDisabled ? 'Réactiver' : 'Désactiver';
                     const disableButtonClass = isDisabled
                         ? 'border-[#004e53] text-[#00f0ff] hover:bg-[#004e53]'
                         : 'border-red-900/70 text-red-300 hover:bg-red-900/30';
@@ -1754,7 +1808,7 @@
                             <div class="text-gray-500 text-xs truncate">${email}</div>
                         </div>
                         <div class="flex flex-col sm:flex-row gap-2">
-                            <label class="sr-only" for="role-${escapeAttr(profile.id)}">Role</label>
+                            <label class="sr-only" for="role-${escapeAttr(profile.id)}">Rôle</label>
                             <select id="role-${escapeAttr(profile.id)}" data-testid="admin-role-select" onchange="${eventHandlerCall('handleAdminRoleChange', profile.id)}"
                                     class="bg-[#001a1f] border border-[#004e53] text-[#00f0ff] rounded px-2 py-1 text-sm">
                                 <option value="user" ${role === 'user' ? 'selected' : ''}>${roleLabel('user')}</option>
@@ -2117,7 +2171,7 @@
                 await renderHomeView();
             } catch (error) {
                 console.error('[admin:role]', error);
-                alert('Erreur lors du changement de role.');
+                alert('Erreur lors du changement de rôle.');
                 await renderAdminPanel();
             }
         }
@@ -2129,8 +2183,8 @@
             const row = document.getElementById(`role-${userId}`)?.closest('[data-testid="admin-user-row"]');
             const pseudo = row?.querySelector('[data-testid="admin-user-pseudo"]')?.textContent?.trim() || 'cet utilisateur';
             const message = disabled
-                ? `Desactiver le compte de ${pseudo} ?\n\nCe compte ne pourra plus acceder a l application et ses fiches seront masquees des listes.`
-                : `Reactiver le compte de ${pseudo} ?\n\nCe compte pourra de nouveau acceder a l application.`;
+                ? `Désactiver le compte de ${pseudo} ?\n\nCe compte ne pourra plus accéder à l'application et ses fiches seront masquées des listes.`
+                : `Réactiver le compte de ${pseudo} ?\n\nCe compte pourra de nouveau accéder à l'application.`;
 
             if (!confirm(message)) return;
 
@@ -2348,6 +2402,9 @@
             closeAccountModal,
             handleAccountEmailSubmit,
             handleAccountPasswordSubmit,
+            openPrivacyPanel,
+            closePrivacyPanel,
+            clearLocalPrivacyData,
             continueWithoutAccount,
             showLoginView,
             handleLogout,

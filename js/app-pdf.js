@@ -114,6 +114,10 @@
     }
 
     function replaceCloneFormControls(clone) {
+        clone.querySelectorAll('#specialTalentsToggle, #specialTalentsPanel').forEach((element) => {
+            element.remove();
+        });
+
         clone.querySelectorAll('input, textarea, select').forEach((element) => {
             try {
                 let value = '';

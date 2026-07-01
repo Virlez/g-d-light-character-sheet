@@ -82,15 +82,23 @@
                 <div id="authRecoveryHint" class="mt-3 text-xs text-gray-500 hidden">
                     Entrez votre nouveau mot de passe puis validez pour terminer la récupération.
                 </div>
+                <p id="authPrivacyNotice" data-testid="auth-privacy-notice" class="mt-3 text-xs text-gray-500 hidden">
+                    En créant un compte, votre e-mail, votre pseudo et vos fiches sont conservés pour fournir la sauvegarde en ligne et les droits MJ/admin.
+                    <button type="button" onclick="openPrivacyPanel()" class="text-[#00f0ff] hover:text-white underline underline-offset-2">Confidentialité</button>
+                </p>
                 <button type="submit" id="authSubmitBtn" data-mode="login"
                         class="w-full mt-5 bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-sm">
                     Se connecter
                 </button>
             </form>
-            <div class="mt-4 text-center">
+            <div class="mt-4 text-center flex flex-col items-center gap-2">
                 <button onclick="continueWithoutAccount()"
                         class="text-gray-600 hover:text-gray-400 text-xs transition-colors uppercase tracking-wider">
                     Continuer sans compte
+                </button>
+                <button type="button" onclick="openPrivacyPanel()"
+                        class="text-gray-600 hover:text-[#00f0ff] text-xs transition-colors uppercase tracking-wider">
+                    Confidentialité
                 </button>
             </div>
         </div>
@@ -114,10 +122,14 @@
                     Valider le pseudo
                 </button>
             </form>
-            <div class="mt-4 text-center">
+            <div class="mt-4 text-center flex flex-col items-center gap-2">
                 <button onclick="handleLogout()"
                         class="text-gray-600 hover:text-red-400 text-xs transition-colors uppercase tracking-wider">
-                    DÃ©connexion
+                    Déconnexion
+                </button>
+                <button type="button" onclick="openPrivacyPanel()"
+                        class="text-gray-600 hover:text-[#00f0ff] text-xs transition-colors uppercase tracking-wider">
+                    Confidentialité
                 </button>
             </div>
         </div>
@@ -129,11 +141,11 @@
             <p class="text-sm tracking-widest text-gray-400 mt-2">ACCES SUSPENDU</p>
         </div>
         <div class="bg-[#001a1f] border border-red-900/70 rounded-lg p-6 text-center">
-            <p class="text-red-400 uppercase tracking-widest text-sm font-bold">Compte desactive</p>
-            <p class="text-gray-400 text-sm mt-3">Ce compte ne peut plus acceder a l'application. Les fiches associees ne sont plus visibles dans les listes.</p>
+            <p class="text-red-400 uppercase tracking-widest text-sm font-bold">Compte désactivé</p>
+            <p class="text-gray-400 text-sm mt-3">Ce compte ne peut plus accéder à l'application. Les fiches associées ne sont plus visibles dans les listes.</p>
             <button onclick="handleLogout()"
                     class="mt-5 bg-[#002e33] hover:bg-red-900/40 text-red-300 px-5 py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-sm border border-red-900/70">
-                Deconnexion
+                Déconnexion
             </button>
         </div>
     </div>
@@ -149,11 +161,13 @@
                         class="text-[#00f0ff] hover:text-white text-xs opacity-80 hover:opacity-100 truncate max-w-xs transition-colors"></button>
                 <span id="homeUserRole" class="hidden text-[10px] uppercase tracking-widest border border-[#004e53] text-gray-400 px-2 py-0.5 rounded"></span>
                 <button id="adminPanelToggle" onclick="showAdminView()" class="hidden text-gray-500 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Administration</button>
+                <button onclick="openPrivacyPanel()" class="text-gray-600 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Confidentialité</button>
                 <button onclick="handleLogout()" class="text-gray-600 hover:text-red-400 text-xs uppercase font-bold tracking-wider transition-colors">Déconnexion</button>
             </div>
         </header>
         <div id="homeGuestBar" class="hidden flex items-center justify-end gap-3 mt-3">
             <span class="text-gray-500 text-xs uppercase tracking-wider">Mode local</span>
+            <button onclick="openPrivacyPanel()" class="text-gray-500 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Confidentialité</button>
             <button onclick="showLoginView()" class="text-[#00f0ff] hover:text-white text-xs uppercase font-bold tracking-wider transition-colors">Connexion</button>
         </div>
         <div id="homeSheetTabs" data-testid="home-sheet-tabs" class="hidden flex flex-wrap justify-center gap-2 mb-6"></div>
@@ -197,7 +211,7 @@
                     <div id="accountEmailMessage" class="mt-3 text-xs hidden"></div>
                     <button id="accountEmailSubmitBtn" type="submit"
                             class="w-full mt-4 bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-xs">
-                        Mettre a jour l'e-mail
+                        Mettre à jour l'e-mail
                     </button>
                 </form>
 
@@ -215,9 +229,27 @@
                     <div id="accountPasswordMessage" class="mt-3 text-xs hidden"></div>
                     <button id="accountPasswordSubmitBtn" type="submit"
                             class="w-full mt-4 bg-[#004e53] hover:bg-[#00f0ff] hover:text-black text-[#00f0ff] py-2 rounded clip-corner transition-colors uppercase font-bold tracking-widest text-xs">
-                        Mettre a jour le mot de passe
+                        Mettre à jour le mot de passe
                     </button>
                 </form>
+            </div>
+
+            <div class="mt-4 border border-[#004e53] rounded p-4">
+                <h3 class="text-[#00f0ff] uppercase tracking-widest text-sm font-bold mb-2">Mes données</h3>
+                <p class="text-gray-400 text-xs leading-relaxed">
+                    Vous pouvez supprimer vos fiches depuis "Mes fiches", effacer les données locales de ce navigateur, ou demander l'effacement de votre compte à l'administrateur du projet.
+                </p>
+                <div class="mt-3 flex flex-wrap gap-2">
+                    <button type="button" onclick="clearLocalPrivacyData()"
+                            class="bg-[#002e33] hover:bg-red-900/50 text-red-300 px-3 py-2 rounded text-xs uppercase font-bold tracking-wider transition-colors border border-red-900/70">
+                        Effacer les données locales
+                    </button>
+                    <button type="button" onclick="openPrivacyPanel()"
+                            class="text-gray-500 hover:text-[#00f0ff] px-3 py-2 text-xs uppercase font-bold tracking-wider transition-colors">
+                        Confidentialité
+                    </button>
+                </div>
+                <div id="accountPrivacyMessage" class="mt-3 text-xs hidden"></div>
             </div>
         </div>
     </div>
@@ -230,7 +262,8 @@
             </div>
             <div class="flex items-center justify-end gap-3 mt-3">
                 <button onclick="showHomeView()" class="text-gray-500 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Mes fiches</button>
-                <button onclick="handleLogout()" class="text-gray-600 hover:text-red-400 text-xs uppercase font-bold tracking-wider transition-colors">DÃ©connexion</button>
+                <button onclick="openPrivacyPanel()" class="text-gray-600 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Confidentialité</button>
+                <button onclick="handleLogout()" class="text-gray-600 hover:text-red-400 text-xs uppercase font-bold tracking-wider transition-colors">Déconnexion</button>
             </div>
         </header>
         <section id="adminPanel" data-testid="admin-panel" class="border border-[#004e53] bg-[#001a1f] rounded-lg p-4 mb-10">
@@ -251,6 +284,7 @@
             </button>
             <div id="sheetGuestBar" class="hidden flex items-center gap-3">
                 <span class="text-gray-500 text-xs uppercase tracking-wider">Mode local</span>
+                <button onclick="openPrivacyPanel()" class="text-gray-500 hover:text-[#00f0ff] text-xs uppercase font-bold tracking-wider transition-colors">Confidentialité</button>
                 <button onclick="showLoginView()" class="text-[#00f0ff] hover:text-white text-xs uppercase font-bold tracking-wider transition-colors">Connexion</button>
             </div>
         </div>
@@ -314,11 +348,11 @@
                         <button type="button" id="specialTalentsToggle" data-testid="special-talents-toggle" onclick="toggleSpecialTalentsPanel()"
                                 title="Talents spéciaux"
                                 aria-label="Talents spéciaux"
-                                class="w-7 h-7 shrink-0 inline-flex items-center justify-center text-[#00f0ff] border border-[#004e53] rounded hover:bg-[#004e53] transition-colors leading-none">
+                                class="no-print w-7 h-7 shrink-0 inline-flex items-center justify-center text-[#00f0ff] border border-[#004e53] rounded hover:bg-[#004e53] transition-colors leading-none">
                             &#9881;
                         </button>
                     </div>
-                    <div id="specialTalentsPanel" data-testid="special-talents-panel" class="hidden mb-3 border border-[#004e53] bg-[#001a1f] rounded p-2">
+                    <div id="specialTalentsPanel" data-testid="special-talents-panel" class="hidden no-print mb-3 border border-[#004e53] bg-[#001a1f] rounded p-2">
                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-2">
                             <label class="flex items-start gap-2 text-xs text-gray-300 leading-tight">
                                 <input type="checkbox" id="talent_solid" class="mt-0.5 accent-[#00f0ff]">
@@ -620,7 +654,10 @@
         </div>
 
         <input type="file" id="importFile" data-testid="import-json-input" accept=".json" class="hidden" onchange="importJSON(this)">
-        <p class="text-center text-sm text-gray-600 mt-4 mb-4">© SWTOR RPG System Fan Sheet</p>
+        <p class="text-center text-sm text-gray-600 mt-4 mb-4">
+            © SWTOR RPG System Fan Sheet
+            <button type="button" onclick="openPrivacyPanel()" class="ml-2 text-gray-500 hover:text-[#00f0ff] underline underline-offset-2 no-print">Confidentialité</button>
+        </p>
 
     </div><!-- /#sheetRoot -->
     </div><!-- /#sheetView -->
@@ -755,6 +792,64 @@
             </div>
             <div id="localStorageList" class="overflow-y-auto flex flex-col gap-3 min-h-[60px]">
             </div>
+            <div class="border-t border-[#004e53] pt-3 flex justify-end">
+                <button type="button" onclick="clearLocalPrivacyData()"
+                        class="text-red-300 hover:text-red-100 text-xs uppercase font-bold tracking-wider transition-colors">
+                    Effacer les données locales
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Privacy / RGPD information panel -->
+    <div id="privacyPanel" data-testid="privacy-panel" class="hidden fixed inset-0 bg-black/80 z-50 items-center justify-center p-4 no-print">
+        <div class="bg-[#001a1f] border border-[#004e53] rounded-lg p-6 w-full max-w-3xl max-h-[86vh] overflow-y-auto shadow-[0_0_30px_rgba(0,240,255,0.12)]">
+            <div class="flex justify-between items-start gap-4 border-b border-[#004e53] pb-3 mb-4">
+                <div>
+                    <h2 class="text-[#00f0ff] font-bold uppercase tracking-widest text-lg">Confidentialité</h2>
+                    <p class="text-gray-500 text-xs mt-1">Projet personnel, audience réduite</p>
+                </div>
+                <button onclick="closePrivacyPanel()" class="text-gray-400 hover:text-white text-xl leading-none font-bold" aria-label="Fermer">&#x2715;</button>
+            </div>
+
+            <div class="space-y-4 text-sm text-gray-300 leading-relaxed">
+                <section>
+                    <h3 class="text-[#00f0ff] uppercase tracking-widest text-xs font-bold mb-1">Données traitées</h3>
+                    <p>Compte: e-mail, pseudo, rôle applicatif et guilde MJ le cas échéant. Fiches: nom du personnage, caractéristiques, inventaire, notes, image importée et dates de sauvegarde.</p>
+                </section>
+
+                <section>
+                    <h3 class="text-[#00f0ff] uppercase tracking-widest text-xs font-bold mb-1">Pourquoi</h3>
+                    <p>Ces données servent uniquement à connecter les joueurs, sauvegarder les fiches, gérer les droits MJ/admin et permettre l'export JSON/PDF/image demandé par l'utilisateur.</p>
+                </section>
+
+                <section>
+                    <h3 class="text-[#00f0ff] uppercase tracking-widest text-xs font-bold mb-1">Stockage et destinataires</h3>
+                    <p>En mode local, les fiches restent dans le navigateur via localStorage. Avec un compte, les fiches et profils sont stockés dans Supabase. Les administrateurs peuvent voir les comptes et fiches; les MJ ne voient que les fiches relevant de leur périmètre. Les bibliothèques chargées depuis CDN peuvent recevoir des données techniques de connexion comme l'adresse IP.</p>
+                </section>
+
+                <section>
+                    <h3 class="text-[#00f0ff] uppercase tracking-widest text-xs font-bold mb-1">Cookies et traceurs</h3>
+                    <p>Le site n'utilise pas de publicité, d'analytics ou de bouton social de suivi. Les données de session Supabase et le localStorage servent à fournir le service demandé; il n'y a donc pas de bannière de consentement pour des traceurs optionnels.</p>
+                </section>
+
+                <section>
+                    <h3 class="text-[#00f0ff] uppercase tracking-widest text-xs font-bold mb-1">Conservation et droits</h3>
+                    <p>Les fiches sont conservées jusqu'à leur suppression par l'utilisateur ou par l'administrateur du projet. Vous pouvez corriger vos données dans l'application, supprimer vos fiches, effacer les données locales et demander la suppression de votre compte à l'administrateur.</p>
+                </section>
+            </div>
+
+            <div class="mt-5 flex flex-wrap gap-2 border-t border-[#004e53] pt-4">
+                <button type="button" onclick="clearLocalPrivacyData()"
+                        class="bg-[#002e33] hover:bg-red-900/50 text-red-300 px-3 py-2 rounded text-xs uppercase font-bold tracking-wider transition-colors border border-red-900/70">
+                    Effacer les données locales
+                </button>
+                <button type="button" onclick="closePrivacyPanel()"
+                        class="text-gray-500 hover:text-[#00f0ff] px-3 py-2 text-xs uppercase font-bold tracking-wider transition-colors">
+                    Fermer
+                </button>
+            </div>
+            <div id="privacyPanelMessage" data-testid="privacy-panel-message" class="mt-3 text-xs hidden"></div>
         </div>
     </div>
 

@@ -240,6 +240,10 @@
         localStorage.setItem(LS_KEY, JSON.stringify(sheets));
     }
 
+    function clearAllLocalSheets() {
+        localStorage.removeItem(LS_KEY);
+    }
+
     function listSheetsFromLocalStorage() {
         return Object.values(lsGetAll())
             .map(entry => ({
@@ -261,6 +265,7 @@
         saveSheetToLocalStorage,
         loadSheetFromLocalStorage,
         deleteSheetFromLocalStorage,
+        clearAllLocalSheets,
         listSheetsFromLocalStorage
     };
 })(window);

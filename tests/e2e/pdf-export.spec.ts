@@ -69,6 +69,23 @@ test.describe('Character sheet - PDF export', () => {
     await expect(sheet.exportPdfButton()).toHaveAttribute('title', 'Exporter en PDF');
   });
 
+  test('hides special talent controls from PDF and JPEG export clones', async ({ page }) => {
+    const sheet = new CharacterSheetPage(page);
+
+    await sheet.goto();
+    await page.getByTestId('special-talents-toggle').click();
+    await expect(page.getByTestId('special-talents-panel')).toBeVisible();
+
+    await sheet.preparePdfPreviewForTests();
+
+    const preview = page.getByTestId('pdf-export-preview');
+    await expect(preview).toBeVisible();
+    await expect(preview.locator('#specialTalentsToggle')).toHaveCount(0);
+    await expect(preview.locator('#specialTalentsPanel')).toHaveCount(0);
+    await expect(preview.getByText('Solide')).toHaveCount(0);
+    await expect(preview.getByText('Inexpugnable')).toHaveCount(0);
+  });
+
   test('forces a desktop-like render width for PDF export on mobile', async ({ page }, testInfo) => {
     test.skip(!testInfo.project.name.startsWith('mobile-'), 'Mobile-only PDF export coverage');
 

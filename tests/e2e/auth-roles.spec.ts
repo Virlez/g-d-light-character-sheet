@@ -381,7 +381,7 @@ test.describe('Auth profiles and roles', () => {
     await page.locator('#accountEmailCurrentPassword').fill('Password1!');
     await page.getByTestId('account-email-form').locator('button[type="submit"]').click();
 
-    await expect(page.locator('#accountEmailMessage')).toContainText('Demande envoyee');
+    await expect(page.locator('#accountEmailMessage')).toContainText('Demande envoyée');
     const state = await page.evaluate(() => (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState);
     expect(state.signInPayloads).toContainEqual({ email: 'player@example.com', password: 'Password1!' });
     expect(state.updateUserPayloads).toContainEqual({ email: 'new@example.com' });
@@ -419,7 +419,7 @@ test.describe('Auth profiles and roles', () => {
     await page.getByTestId('account-password-form').locator('button[type="submit"]').click();
 
     await expect(page.locator('#authView')).toBeVisible();
-    await expect(page.locator('#authMessage')).toContainText('Mot de passe mis a jour');
+    await expect(page.locator('#authMessage')).toContainText('Mot de passe mis à jour');
     const state = await page.evaluate(() => (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState);
     expect(state.signInPayloads).toContainEqual({ email: 'player@example.com', password: 'Password1!' });
     expect(state.updateUserPayloads).toContainEqual({ password: 'NewPassword1!' });
@@ -561,11 +561,11 @@ test.describe('Auth profiles and roles', () => {
     await expect(playerRow).toContainText('Actif');
 
     page.once('dialog', async (dialog) => {
-      expect(dialog.message()).toContain('Desactiver le compte de Kara');
+      expect(dialog.message()).toContain('Désactiver le compte de Kara');
       await dialog.accept();
     });
     await playerRow.getByTestId('admin-disable-toggle').click();
-    await expect(playerRow).toContainText('Desactive');
+    await expect(playerRow).toContainText('Désactivé');
 
     let profile = await page.evaluate(() => {
       const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
@@ -579,7 +579,7 @@ test.describe('Auth profiles and roles', () => {
     await page.locator('#adminPanelToggle').click();
 
     page.once('dialog', async (dialog) => {
-      expect(dialog.message()).toContain('Reactiver le compte de Kara');
+      expect(dialog.message()).toContain('Réactiver le compte de Kara');
       await dialog.accept();
     });
     await page.getByTestId('admin-user-row').filter({ hasText: 'Kara' }).getByTestId('admin-disable-toggle').click();
