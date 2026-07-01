@@ -31,3 +31,17 @@ test('nameFromId maps only known guild ids', () => {
   assert.equal(guilds.nameFromId('ordo_augustus'), 'Ordo Augustus');
   assert.equal(guilds.nameFromId('missing'), '');
 });
+
+test('setGuilds replaces the catalog and supports normalized uppercase ids', () => {
+  const guilds = loadGuilds();
+
+  guilds.setGuilds([
+    { id: 'PNJ', name: 'PNJ' },
+    { id: 'ordo_augustus', name: 'Ordo Augustus' }
+  ]);
+
+  assert.deepEqual(JSON.parse(JSON.stringify(guilds.GUILDS.map((guild) => guild.id))), ['PNJ', 'ordo_augustus']);
+  assert.equal(guilds.idFromName('PNJ'), 'PNJ');
+  assert.equal(guilds.idFromName('pnj'), 'PNJ');
+  assert.equal(guilds.nameFromId('pnj'), 'PNJ');
+});

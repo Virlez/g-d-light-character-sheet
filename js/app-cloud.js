@@ -56,6 +56,17 @@
         };
     }
 
+    async function listGuilds() {
+        const client = getClient();
+        if (!client) return AppGuilds?.GUILDS || [];
+        const { data, error } = await client
+            .from('guilds')
+            .select('id, name')
+            .order('name', { ascending: true });
+        if (error) throw error;
+        return data || [];
+    }
+
     async function listSheets(filters = {}) {
         const client = getClient();
         if (!client) return [];
@@ -270,6 +281,7 @@
     }
 
     global.CharacterSheetCloud = {
+        listGuilds,
         listSheets,
         getSheetImage,
         saveSheet,

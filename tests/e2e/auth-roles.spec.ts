@@ -20,18 +20,28 @@ type MockSheet = {
   data: Record<string, unknown>;
 };
 
+type MockGuild = {
+  id: string;
+  name: string;
+};
+
 async function installSupabaseMock(
   page: Page,
   options: {
     session?: { user: { id: string; email: string } } | null;
     profiles?: MockProfile[];
     sheets?: MockSheet[];
+    guilds?: MockGuild[];
   } = {}
 ): Promise<void> {
   const state = {
     session: options.session ?? null,
     profiles: options.profiles ?? [],
     sheets: options.sheets ?? [],
+    guilds: options.guilds ?? [
+      { id: 'ordo_augustus', name: 'Ordo Augustus' },
+      { id: 'arcanum_astralis', name: 'Arcanum Astralis' }
+    ],
     upsertRows: [] as unknown[],
     queryCounts: { profiles: 0, sheets: 0 },
     selects: [] as Array<{ table: string; columns: string }>,
@@ -105,11 +115,15 @@ async function installSupabaseMock(
                 state.queryCounts.sheets += 1;
                 rows = state.sheets;
               }
+              if (query._table === 'guilds') {
+                rows = state.guilds;
+              }
 
               rows = applySheetRls(query._table, rows);
               rows = rows.filter((row) => query._filters.every((filter) => filter.is ? row[filter.column] === null || typeof row[filter.column] === 'undefined' : row[filter.column] === filter.value));
               if (query._table === 'sheets') rows = rows.slice().sort((a, b) => String(b.saved_at).localeCompare(String(a.saved_at)));
               if (query._table === 'profiles') rows = rows.slice().sort((a, b) => String(a.pseudo || '').localeCompare(String(b.pseudo || '')));
+              if (query._table === 'guilds') rows = rows.slice().sort((a, b) => String(a.name || '').localeCompare(String(b.name || '')));
               rows = rows.map((row) => projectRow(row, query._select));
 
               if (query._single) {
@@ -282,7 +296,7 @@ async function installSupabaseMock(
                   const sheet = state.sheets.find((item) => item.id === params.target_sheet_id);
                   if (sheet) {
                     sheet.guild_id = params.new_guild_id;
-                    const guildName = params.new_guild_id === 'ordo_augustus' ? 'Ordo Augustus' : 'Arcanum Astralis';
+                    const guildName = state.guilds.find((guild) => guild.id === params.new_guild_id)?.name || '';
                     sheet.data = { ...sheet.data, guild_name: guildName };
                   }
                   return { data: sheet || null, error: null };
@@ -600,6 +614,11 @@ test.describe('Auth profiles and roles', () => {
         { id: 'gm-1', email: 'gm@example.com', pseudo: 'Le MJ', role: 'user' },
         { id: 'player-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }
       ],
+      guilds: [
+        { id: 'ordo_augustus', name: 'Ordo Augustus' },
+        { id: 'arcanum_astralis', name: 'Arcanum Astralis' },
+        { id: 'PNJ', name: 'PNJ' }
+      ],
       sheets: [{
         id: 'admin-sheet',
         name: 'Admin Perso',
@@ -626,14 +645,14 @@ test.describe('Auth profiles and roles', () => {
 
     await page.locator('#role-gm-1').selectOption('mj');
     await expect(page.locator('#mj-guild-gm-1')).toBeVisible();
-    await page.locator('#mj-guild-gm-1').selectOption('arcanum_astralis');
+    await page.locator('#mj-guild-gm-1').selectOption('PNJ');
 
     let gmProfile = await page.evaluate(() => {
       const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
       return state.profiles.find((profile: any) => profile.id === 'gm-1');
     });
     expect(gmProfile.role).toBe('mj');
-    expect(gmProfile.mj_guild_id).toBe('arcanum_astralis');
+    expect(gmProfile.mj_guild_id).toBe('PNJ');
 
     await page.getByRole('button', { name: 'Mes fiches' }).click();
     await page.getByTestId('home-sheet-tab-unguilded').click();
@@ -652,8 +671,8 @@ test.describe('Auth profiles and roles', () => {
       const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
       return state.queryCounts.sheets;
     });
-    await page.getByTestId('home-assign-guild-select').selectOption('ordo_augustus');
-    await expect(page.getByTestId('home-assign-guild-select')).toHaveValue('ordo_augustus');
+    await page.getByTestId('home-assign-guild-select').selectOption('PNJ');
+    await expect(page.getByTestId('home-assign-guild-select')).toHaveValue('PNJ');
     await expect(page.getByTestId('home-apply-guild-assignments')).toBeEnabled();
     await expect(page.getByTestId('home-apply-guild-assignments')).toContainText('Valider les changements (1)');
     const sheetQueryCountAfterSelect = await page.evaluate(() => {
@@ -674,8 +693,8 @@ test.describe('Auth profiles and roles', () => {
       const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
       return state.sheets.find((item: any) => item.id === 'sheet-1');
     });
-    expect(sheet.guild_id).toBe('ordo_augustus');
-    expect(sheet.data.guild_name).toBe('Ordo Augustus');
+    expect(sheet.guild_id).toBe('PNJ');
+    expect(sheet.data.guild_name).toBe('PNJ');
   });
 
   test('lets an admin browse all sheets with filters and open others read-only', async ({ page }) => {
@@ -757,13 +776,18 @@ test.describe('Auth profiles and roles', () => {
   test('saves the selected character guild as guild_id in cloud storage', async ({ page }) => {
     await installSupabaseMock(page, {
       session: { user: { id: 'user-1', email: 'player@example.com' } },
-      profiles: [{ id: 'user-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }]
+      profiles: [{ id: 'user-1', email: 'player@example.com', pseudo: 'Kara', role: 'user' }],
+      guilds: [
+        { id: 'ordo_augustus', name: 'Ordo Augustus' },
+        { id: 'arcanum_astralis', name: 'Arcanum Astralis' },
+        { id: 'PNJ', name: 'PNJ' }
+      ]
     });
 
     await page.goto('/');
     await page.getByText('+ Nouvelle Fiche').click();
     await page.locator('#char_name').fill('Kara Venn');
-    await page.locator('#guild_name').selectOption('Arcanum Astralis');
+    await page.locator('#guild_name').selectOption('PNJ');
     await page.getByTestId('photo-upload-input').setInputFiles(portraitFixture);
     await expect(page.getByTestId('photo-preview')).not.toHaveClass(/hidden/);
     await expect.poll(async () => {
@@ -780,8 +804,8 @@ test.describe('Auth profiles and roles', () => {
       const state = (window as Window & { __mockSupabaseState?: any }).__mockSupabaseState;
       return state.upsertRows[state.upsertRows.length - 1];
     });
-    expect(saved.guild_id).toBe('arcanum_astralis');
-    expect(saved.data.guild_name).toBe('Arcanum Astralis');
+    expect(saved.guild_id).toBe('PNJ');
+    expect(saved.data.guild_name).toBe('PNJ');
     expect(saved.image_data).toContain('data:image/svg+xml');
   });
 

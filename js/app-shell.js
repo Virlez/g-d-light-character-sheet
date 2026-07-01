@@ -418,6 +418,35 @@
             return escapeHtml(str).replace(/'/g, '&#39;');
         }
 
+        function guilds() {
+            return AppGuilds?.GUILDS || [];
+        }
+
+        function renderCharacterGuildOptions() {
+            const select = document.getElementById('guild_name');
+            if (!select) return;
+            const selectedName = AppGuilds?.normalizeName(select.value) || select.value || '';
+            select.innerHTML = '<option value="">Aucune</option>' + guilds().map((guild) => {
+                const selected = guild.name === selectedName ? 'selected' : '';
+                return `<option value="${escapeAttr(guild.name)}" ${selected}>${escapeHtml(guild.name)}</option>`;
+            }).join('');
+        }
+
+        async function refreshGuildCatalog() {
+            if (!isLoggedIn() || !AppCloud?.listGuilds || !AppGuilds?.setGuilds) {
+                renderCharacterGuildOptions();
+                return AppGuilds?.GUILDS || [];
+            }
+
+            try {
+                AppGuilds.setGuilds(await AppCloud.listGuilds());
+            } catch (error) {
+                console.error('[guilds:list]', error);
+            }
+            renderCharacterGuildOptions();
+            return AppGuilds.GUILDS;
+        }
+
         function jsLiteral(value) {
             return JSON.stringify(String(value ?? ''))
                 .replace(/</g, '\\u003C')
@@ -1094,6 +1123,7 @@
 
         async function ensureProfileReady() {
             if (!isLoggedIn()) return true;
+            await refreshGuildCatalog();
             const profile = await refreshCurrentProfile();
             if (profile?.isDisabled) {
                 showDisabledAccountView();
@@ -1703,6 +1733,7 @@
         }
 
         async function handlePostSignIn(options = {}) {
+            if (options.skipProfileCheck) await refreshGuildCatalog();
             if (!options.skipProfileCheck) {
                 const ready = await ensureProfileReady();
                 if (!ready) return;
@@ -1796,7 +1827,7 @@
 
         function guildOptionsHtml(selectedId = '') {
             if (!AppGuilds) return '';
-            return AppGuilds.GUILDS.map((guild) => {
+            return guilds().map((guild) => {
                 const selected = guild.id === selectedId ? 'selected' : '';
                 return `<option value="${escapeAttr(guild.id)}" ${selected}>${escapeHtml(guild.name)}</option>`;
             }).join('');
@@ -1851,7 +1882,7 @@
                     const pseudo = escapeHtml(profile.pseudo || 'Pseudo manquant');
                     const email = profile.email ? escapeHtml(profile.email) : 'Email indisponible';
                     const role = profile.role || 'user';
-                    const selectedGuildId = profile.mjGuildId || AppGuilds?.GUILDS[0]?.id || '';
+                    const selectedGuildId = profile.mjGuildId || guilds()[0]?.id || '';
                     const isDisabled = !!profile.isDisabled;
                     const self = profile.id === getCurrentUserId();
                     const statusHtml = isDisabled
@@ -2221,7 +2252,7 @@
             const roleSelect = document.getElementById(`role-${userId}`);
             const guildSelect = document.getElementById(`mj-guild-${userId}`);
             const role = roleSelect?.value || 'user';
-            const defaultGuildId = AppGuilds?.GUILDS[0]?.id || null;
+            const defaultGuildId = guilds()[0]?.id || null;
             const mjGuildId = role === 'mj' ? (guildSelect?.value || defaultGuildId) : null;
 
             if (guildSelect) {
@@ -2356,6 +2387,7 @@
         bindImageFeature();
         installAutosave();
         setAuthMode('login');
+        renderCharacterGuildOptions();
 
         function detectRecoveryRedirect() {
             const hash = window.location.hash ? window.location.hash.replace(/^#/, '') : '';
